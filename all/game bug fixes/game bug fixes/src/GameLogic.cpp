@@ -348,7 +348,7 @@ _LHF_(Y_OnDeleteObjectOnMap)
   return EXEC_DEFAULT;
 }
 
-// @ SadnessPower
+// © SadnessPower
 // Пожиратель душ ранее воскрешал стеки существ, уровень которых больше 4,
 // если их здоровье было меньше 50
 _LHF_(BattleStack_AtGettingResurrectionResistance)
@@ -373,7 +373,17 @@ _LHF_(BattleStack_AtGettingResurrectionResistance)
 
     return EXEC_DEFAULT;
 }
+// © daemon_n
+// фикс бага расчёта защиты с возвратом 0 (чаще всего при атаке медведями существ с низкой защитой)
+_LHF_(WoG_BattleStack_GetDefenceAgainst)
+{
+    // поместить сразу в переменную возврата результат выполнения оригинальной ф-ции
+    // вот если бы не Ghost Behemoth, проблема бы решалась в 2 счёта (байта, кек)
 
+    IntAt(0x2832700) = c->eax;
+    return EXEC_DEFAULT;
+
+}
 
 // ##############################################################################################################################
 // ##############################################################################################################################
@@ -438,6 +448,12 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteByte(0x71C7B3 +1, 0xB6);
     _PI->WriteByte(0x71C7D2 +1, 0xB6);
 
+    // © daemon_n
+    // WoG баг, при котором, если защита отряда из оригинальной ф-ции = 0
+    // и нет нападающего отряда при расчёте, игра возвращала мусорное значение;
+    _PI->WriteLoHook(0x075D42C, WoG_BattleStack_GetDefenceAgainst);
+
+
     // убираем клонов из показа в диалоге результатов битвы
     _PI->WriteLoHook(0x4708FC, Y_Dlg_BattleResults_IgnoreClones);
 
@@ -453,12 +469,12 @@ void GameLogic(PatcherInstance* _PI)
     // стоит выше на 1 ед. по y-координате
     _PI->WriteLoHook(0x4AA979, Y_OnDeleteObjectOnMap);
 
-    // @ JackSlater
+    // © JackSlater
     // фикс бага при получении хинта от Магических Святынь
     // ранее использовался массив с заклинаиями от артефактов 0x430 -> 0x3EA
     _PI->WriteWord(0x40D979 +3, 0x3EA);
 
-    // @ SadnessPower
+    // © SadnessPower
     // Фикс Бага воскрешения командиром существ со здоровьем <=50, а не макс 5-го уровня
     _PI->WriteLoHook(0x05A881C, BattleStack_AtGettingResurrectionResistance);
 
