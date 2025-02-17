@@ -1,89 +1,164 @@
-// окно обмена героями в городе по клавише E 
+// окно обмена героями в городе по клавише E
 
-bool inTownDlg;
-
-int __stdcall Y_DlgTown_Proc(HiHook* hook, _TownMgr_* tm, _EventMsg_* msg)
+bool inTownDlg = false;
+constexpr auto BUTTON_HK = HK_E;
+constexpr auto BUTTON_ID = 200;
+static constexpr LPSTR HMS_DEF_NAME = "townhrtd.def";
+static constexpr LPSTR HMS_PCX_NAME = "Townhrtr.pcx";
+static constexpr LPSTR HMS_BUTTON_HINT = "wnd.dlg_town.hms_button.hint";
+static constexpr LPSTR HMS_BUTTON_RMC = "wnd.dlg_town.hms_button.rmc";
+int __stdcall Y_DlgTown_Proc(HiHook *hook, _TownMgr_ *tm, _EventMsg_ *msg)
 {
-    int result = CALL_2(int, __thiscall, hook->GetDefaultFunc(), tm, msg);
-
-    inTownDlg = false;
-
-    if (result) 
+    if (msg->type == MT_MOUSEBUTTON && msg->subtype == MST_LBUTTONCLICK && msg->item_id == BUTTON_ID)
     {
-        if (msg->type == MT_KEYDOWN && msg->subtype == HK_E) 
+        const int heroU_id = tm->town->up_hero_id;
+        const int heroD_id = tm->town->down_hero_id;
+        const bool isActive = heroU_id != -1 && heroD_id != -1 && o_ActivePlayerID == o_MeID;
+
+        if (isActive)
         {
+            inTownDlg = true;
 
-            _DlgTextEdit_* editText = (_DlgTextEdit_*)tm->dlg->GetItem(7001);
+            _Hero_ *heroU = o_GameMgr->GetHero(heroU_id);
+            _Hero_ *heroD = o_GameMgr->GetHero(heroD_id);
 
-            if (editText) 
+            if (o_ExecMgr->next != &o_WndMgr->mgr)
             {
-                if (!editText->enteringText) 
-                {
-
-                    int heroU_id = tm->town->up_hero_id;
-                    int heroD_id = tm->town->down_hero_id;
-
-                    if ( heroU_id != -1 && heroD_id != -1) 
-                    {
-                        _Hero_* heroU = o_GameMgr->GetHero(heroU_id);
-                        _Hero_* heroD = o_GameMgr->GetHero(heroD_id);
-
-                        inTownDlg = true;
-
-                        // if ( o_ExecMgr->next != (_Manager_*)o_WndMgr )
-                        // {
-                        //     o_TownMgr->mgr.SetManagers(o_AdvMgr, o_WndMgr);
-                        //     o_AdvMgr->mgr.SetManagers(NULL, o_WndMgr);
-                        //     o_WndMgr->mgr.SetManagers(o_TownMgr, o_MouseMgr);
-                        // }
-
-                        if ( *(int*)((int)o_ExecMgr +4) != (int)o_WndMgr ) 
-                        {
-                            *(int*)((int)o_TownMgr +4) = (int)o_AdvMgr;
-                            *(int*)((int)o_TownMgr +8) = (int)o_WndMgr;
-
-                            *(int*)((int)o_AdvMgr +4) = NULL;
-                            *(int*)((int)o_AdvMgr +8) = (int)o_WndMgr;            
-
-                            *(int*)((int)o_WndMgr +4) = (int)o_TownMgr;
-                            *(int*)((int)o_WndMgr +8) = (int)o_MouseMgr;
-                        }                       
-
-                        hdv(_bool_, "HotA.SwapMgrCalledFromTown") = 1;
-
-                        heroU->TeachScholar(heroD);
-                        o_AdvMgr->SwapHeroes(heroU, heroD);
-
-                        hdv(_bool_, "HotA.SwapMgrCalledFromTown") = 0;
-
-                        o_TownMgr->UnHighlightArmy();       
-                        o_TownMgr->Redraw();   
-
-                        inTownDlg = false;
-                    }
-                }
+                o_TownMgr->mgr.SetManagers(&o_AdvMgr->mgr, &o_WndMgr->mgr);
+                o_AdvMgr->mgr.SetManagers(nullptr, &o_WndMgr->mgr);
+                o_WndMgr->mgr.SetManagers(&o_TownMgr->mgr, &o_MouseMgr->mgr);
             }
+            _DlgItem_ *switchButton = tm->dlg->GetItem(BUTTON_ID);
+            _DlgItem_ *closeDlgbutton = tm->dlg->GetItem(ID_OK_10);
+
+            // скрываем кнопки, потмоу что игра продолжает их обрабатывать... не знаю, как исправить
+            if (switchButton)
+                switchButton->Hide();
+            if (closeDlgbutton)
+                closeDlgbutton->Hide();
+
+            o_TownMgr->mgr.isActive = false;
+            static auto blockScreenUpdate = _PI->CreateHexPatch(0x04AAC21, "90 90 90 90 90 90 90 90 90");
+            blockScreenUpdate->Apply();
+            hdv(_bool_, "HotA.SwapMgrCalledFromTown") = 1;
+
+            // вызываем обмен героями
+            heroU->TeachScholar(heroD);
+            o_AdvMgr->SwapHeroes(heroU, heroD);
+
+            hdv(_bool_, "HotA.SwapMgrCalledFromTown") = 0;
+            blockScreenUpdate->Undo();
+
+            if (switchButton)
+                switchButton->Show();
+            if (closeDlgbutton)
+                closeDlgbutton->Show();
+
+            o_TownMgr->mgr.isActive = true;
+            o_TownMgr->UnHighlightArmy();
+            o_TownMgr->Redraw();
+
+            inTownDlg = false;
         }
     }
 
-    return result;
+    return CALL_2(int, __thiscall, hook->GetDefaultFunc(), tm, msg);
 }
-
-int __stdcall Y_Dlg_HeroesMeet(LoHook* h, HookContext* c)
-{   
-   if ( inTownDlg ) { // пропускаем обновление экрана
-      c->return_address = 0x4AAC2A;
-      return NO_EXEC_DEFAULT;
-   }
-   return EXEC_DEFAULT;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Dlg_TownHeroesMeet(PatcherInstance* _PI)
+void __stdcall GarrisonInterface_SetGraphics(HiHook *hook, const DWORD harrisonInterface, const int redraw,
+                                             const int selectedCreatureID)
 {
+    const auto *tm = o_TownMgr;
+    if (tm && tm->town && tm->dlg && tm->dlg == o_WndMgr->dlg_last)
+    {
+        _DlgItem_ *switchButton = tm->dlg->GetItem(BUTTON_ID);
+        if (switchButton)
+        {
+            const int heroU_id = tm->town->up_hero_id;
+            const int heroD_id = tm->town->down_hero_id;
+            const bool isActive = heroU_id != -1 && heroD_id != -1 && o_ActivePlayerID == o_MeID;
+            CALL_2(void, __thiscall, 0x05FEF00, switchButton, isActive); //
+        }
+    }
+    return CALL_3(void, __thiscall, hook->GetDefaultFunc(), harrisonInterface, redraw, selectedCreatureID);
+}
+// перед инициализацией виджетов диалога добавить кнопку в список
+_LHF_(TownDlg_Create)
+{
+    if (_Dlg_ *dlg = reinterpret_cast<_Dlg_ *>(c->edi))
+    {
+        constexpr int width = 59;
+        constexpr int height = 20;
+        constexpr int x = 269 - width / 2;
+        constexpr int y = 466 - height / 2;
+        // создаём рамку
+        dlg->AddItemToOwnArrayList(_DlgStaticPcx8_::Create(x - 1, y - 1, -1, HMS_PCX_NAME));
+        // создаём кнопку
+        dlg->AddItemToOwnArrayList(
+            _DlgButton_::Create(x, y, width, height, BUTTON_ID, HMS_DEF_NAME, 0, 1, 0, BUTTON_HK, 2));
+    }
+
+    return EXEC_DEFAULT;
+}
+_LHF_(TownDlg_GetItemHint)
+{
+    // если ховер на шей кнопке
+    if (c->edi == BUTTON_ID)
+    {
+        c->edi = reinterpret_cast<int>(Era::tr(HMS_BUTTON_HINT));
+        c->return_address = 0x05C82B2;
+        return NO_EXEC_DEFAULT;
+    }
+
+    return EXEC_DEFAULT;
+}
+_LHF_(TownDlg_GetItemRmcHint)
+{
+    // если пкм на шей кнопке
+    if (IntAt(c->ebp + 0x8) && c->edi == BUTTON_ID)
+    {
+        b_MsgBoxC(Era::tr(HMS_BUTTON_RMC), MBX_RMC, -1, -1);
+    }
+
+    return EXEC_DEFAULT;
+}
+
+void __stdcall Y_Dlg_HeroesMeetCreate(HiHook *hook, const _WndMgr_ *wndMgr, _Dlg_ *dlg, const int order, const int draw)
+{
+
+    CALL_4(int, __thiscall, hook->GetDefaultFunc(), wndMgr, dlg, order, draw);
+    if (dlg)
+    {
+        if (_DlgButton_ *closeDlgbutton = reinterpret_cast<_DlgButton_ *>(dlg->GetItem(ID_OK_10)))
+        {
+            closeDlgbutton->SetHotKey(HK_ESC);
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Dlg_TownHeroesMeet(PatcherInstance *_PI)
+{
+
     // обмен героями в замке ко клавише E
-    _PI->WriteHiHook(0x5D3640, SPLICE_, EXTENDED_, THISCALL_, Y_DlgTown_Proc);
-    _PI->WriteLoHook(0x4AAC1B, Y_Dlg_HeroesMeet);
+
+    //  if (atoi(GetEraJSON("wnd.dlg_town.hms_button.enabled")))
+    { // добавить кнопку в диалог города
+        _PI->WriteLoHook(0x05C5C57, TownDlg_Create);
+
+        // основная процедура
+        _PI->WriteHiHook(0x5D3640, SPLICE_, EXTENDED_, THISCALL_, Y_DlgTown_Proc);
+
+        // сменить состояние кнопки
+        _PI->WriteHiHook(0x05AA0C0, SPLICE_, EXTENDED_, THISCALL_, GarrisonInterface_SetGraphics);
+
+        // хинты. Хз, зачем здесь, если мог в мейн процедуру добавить :thinkking:
+        _PI->WriteLoHook(0x05C7D4B, TownDlg_GetItemHint);
+        _PI->WriteLoHook(0x05D475B, TownDlg_GetItemRmcHint);
+    }
+
+    // добавить "ESC" как хоткей для закрытия диалога встречи
+    // из-за HD mod приходиться ставить хук прямо перед показом диалога... жесть
+    _PI->WriteHiHook(0x05AED58, CALL_, EXTENDED_, THISCALL_, Y_Dlg_HeroesMeetCreate);
 }
