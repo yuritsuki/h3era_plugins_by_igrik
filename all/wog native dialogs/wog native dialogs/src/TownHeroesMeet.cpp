@@ -3,10 +3,10 @@
 bool inTownDlg = false;
 constexpr auto BUTTON_HK = HK_E;
 constexpr auto BUTTON_ID = 200;
-static constexpr LPSTR HMS_DEF_NAME = "townhrtd.def";
-static constexpr LPSTR HMS_PCX_NAME = "Townhrtr.pcx";
-static constexpr LPSTR HMS_BUTTON_HINT = "wnd.dlg_town.hms_button.hint";
-static constexpr LPSTR HMS_BUTTON_RMC = "wnd.dlg_town.hms_button.rmc";
+constexpr LPSTR HMS_DEF_NAME = "townhrtd.def";
+constexpr LPSTR HMS_PCX_NAME = "Townhrtr.pcx";
+constexpr LPSTR HMS_BUTTON_HINT = "wnd.dlg_town.hms_button.hint";
+constexpr LPSTR HMS_BUTTON_RMC = "wnd.dlg_town.hms_button.rmc";
 int __stdcall Y_DlgTown_Proc(HiHook *hook, _TownMgr_ *tm, _EventMsg_ *msg)
 {
     if (msg->type == MT_MOUSEBUTTON && msg->subtype == MST_LBUTTONCLICK && msg->item_id == BUTTON_ID)
@@ -31,7 +31,8 @@ int __stdcall Y_DlgTown_Proc(HiHook *hook, _TownMgr_ *tm, _EventMsg_ *msg)
             _DlgItem_ *switchButton = tm->dlg->GetItem(BUTTON_ID);
             _DlgItem_ *closeDlgbutton = tm->dlg->GetItem(ID_OK_10);
 
-            // скрываем кнопки, потмоу что игра продолжает их обрабатывать... не знаю, как исправить
+            // скрываем кнопки, потому что игра продолжает их обрабатывать... не знаю, как исправить
+            // P.S.: для карты идёт деактивация кнопко по ID, так что подход относительной верный
             if (switchButton)
                 switchButton->Hide();
             if (closeDlgbutton)
