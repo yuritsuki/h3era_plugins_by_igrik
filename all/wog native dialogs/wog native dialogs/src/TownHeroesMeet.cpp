@@ -13,7 +13,7 @@ int __stdcall Y_DlgTown_Proc(HiHook *hook, _TownMgr_ *tm, _EventMsg_ *msg)
     {
         const int heroU_id = tm->town->up_hero_id;
         const int heroD_id = tm->town->down_hero_id;
-        const bool isActive = heroU_id != -1 && heroD_id != -1 && o_ActivePlayerID == o_MeID;
+        const bool isActive = heroU_id != -1 && heroD_id != -1 && (!o_NetworkGame || o_ActivePlayerID == o_MeID);
 
         if (isActive)
         {
@@ -76,7 +76,7 @@ void __stdcall GarrisonInterface_SetGraphics(HiHook *hook, const DWORD harrisonI
         {
             const int heroU_id = tm->town->up_hero_id;
             const int heroD_id = tm->town->down_hero_id;
-            const bool isActive = heroU_id != -1 && heroD_id != -1 && o_ActivePlayerID == o_MeID;
+            const bool isActive = heroU_id != -1 && heroD_id != -1 && (!o_NetworkGame || o_ActivePlayerID == o_MeID);
             CALL_2(void, __thiscall, 0x05FEF00, switchButton, isActive); //
         }
     }
