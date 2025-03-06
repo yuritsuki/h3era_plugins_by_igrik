@@ -14,7 +14,6 @@
 #include <algorithm>
 
 #include "..\..\..\include\era.h"
-using namespace Era;
 
 Patcher* _P;
 PatcherInstance* _PI;
@@ -25,7 +24,7 @@ namespace wndText
 {
     const char* PLUGIN_NAME = "WoG native dialogs";
     const char* PLUGIN_AUTHOR = "igrik";
-    const char* PLUGIN_DATA = "03.03.2024";
+    const char* PLUGIN_DATA = __DATE__;
 } 
 
 //////////////////////////////////
@@ -49,7 +48,7 @@ char* json_Combat[2];
 
 // функция получения JSON строк методом ERA
 char* GetEraJSON(const char* json_string_name) {
-    return tr(json_string_name);
+    return Era::tr(json_string_name);
 }
 
 // мои текстовые буферы
@@ -135,7 +134,7 @@ int __stdcall Y_Dlg_MainMenu_Create(HiHook* hook, _Dlg_* dlg)
 {
     int ret = CALL_1(int, __thiscall, hook->GetDefaultFunc(), dlg);
 
-    const char* ERA_version = GetEraVersion();
+    const char* ERA_version = Era::GetEraVersion();
     sprintf(o_TextBuffer, "HoMM3 ERA %s", ERA_version );
     dlg->AddItem(_DlgStaticText_::Create(590, 570, 200, 20, o_TextBuffer, n_MedFont, 7, 545, ALIGN_H_RIGHT | ALIGN_V_BOTTOM, 0)); 
 
@@ -143,9 +142,9 @@ int __stdcall Y_Dlg_MainMenu_Create(HiHook* hook, _Dlg_* dlg)
 }
 
 // дополняем сообщение ПКМ на кнопке "Авторы"
-void __stdcall OnReportVersion (TEvent* Event) {
+void __stdcall OnReportVersion (Era::TEvent* Event) {
     sprintf(MyString, "{%s}\n(%s)\n", wndText::PLUGIN_NAME, wndText::PLUGIN_DATA);
-    ReportPluginVersion(MyString);
+    Era::ReportPluginVersion(MyString);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -227,10 +226,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             _PI = _P->CreateInstance((char*)wndText::PLUGIN_NAME); 
 
             // подтягиваем ERA
-            ConnectEra();
+            Era::ConnectEra();
             // и сразу получаем версию ERA
-            ERA_VERSION = GetVersionNum();
-            RegisterHandler(OnReportVersion, "OnReportVersion");
+            ERA_VERSION = Era::GetVersionNum();
+            Era::RegisterHandler(OnReportVersion, "OnReportVersion");
 
             // // загружаем HD данные
             // _HD = _P->GetInstance("HD.WoG"); 

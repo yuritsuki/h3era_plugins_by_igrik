@@ -1,6 +1,5 @@
 #include "..\..\..\include\homm3.h"
 #include "..\..\..\include\era.h"
-using namespace Era;
 
 Patcher* _P;
 PatcherInstance* _PI;
@@ -57,9 +56,9 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
             _P = GetPatcher();
             _PI = _P->CreateInstance("game bug fixes extended"); 
 
-            ConnectEra();
+            Era::ConnectEra();
 
-            if (PluginExists("typhon"))
+            if (Era::PluginExists("typhon"))
                 TIPHON = true;
 
             if (_PI)

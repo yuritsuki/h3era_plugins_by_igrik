@@ -221,7 +221,7 @@ typedef _dword_ _ptr_;
 // ¬ыделение пам€ти с автоприведением и возвращением встроенного типа.
 #define MemAlloc(size) ((_ptr_)malloc((size_t)(size)))
 // ќсвобоождение пам€ти с автоприведением типа.
-#define MemFree(ptr) free((void*)(ptr))
+//#define MemFree(ptr) free((void*)(ptr))
 // ѕеревыделение пам€ти с автоприведением и возвращением встроенного типа.
 #define MemRealloc(ptr, size) ((_ptr_)realloc((void*)(ptr), (size_t)(size)))
 

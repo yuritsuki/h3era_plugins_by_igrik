@@ -4,6 +4,9 @@
 #include <vector>
 #include <string>
 
+/* Undefine MemFree from external files */
+#undef MemFree
+
 namespace Era
 {
   #pragma pack(push, 1)
