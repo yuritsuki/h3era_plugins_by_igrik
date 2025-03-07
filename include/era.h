@@ -1,398 +1,504 @@
 #pragma once
+/*
+* The API was updated for ERA 3.9.16.
+*/
+
 #include <windows.h>
 #include <cstdio>
+#include <cstdint>
 #include <vector>
 #include <string>
 
-/* Undefine MemFree from external files */
-#undef MemFree
+#define ERA_API extern
 
 namespace Era
 {
-  #pragma pack(push, 1)
 
-  /* Hooks, requires at least 5 bytes */
-  const int HOOKTYPE_JUMP   = 0;
-  const int HOOKTYPE_CALL   = 1;
-  const int HOOKTYPE_BRIDGE = 2;
-  
-  /*
-  Automatically creates safe bridge to high-level function:
-    BOOL __stdcall Handler (THookContext* Context);
-  Returns "Execute default code" flag. If default code should be executed, it can contain any
-  commands except jumps.
-  */
+#pragma pack(push, 1)
 
-  const int OPCODE_JUMP = 0xE9;
-  const int OPCODE_CALL = 0xE8;
-  const int OPCODE_RET  = 0xC3;
 
-  const int EXEC_DEF_CODE = true;
+typedef int int32_bool;
 
-  /* Erm triggers */
-  const int TRIGGER_FU1       = 0;
-  const int TRIGGER_FU30000   = 29999;
-  const int TRIGGER_TM1       = 30000;
-  const int TRIGGER_TM100     = 30099;
-  const int TRIGGER_HE0       = 30100;
-  const int TRIGGER_HE198     = 30298;
-  const int TRIGGER_BA0       = 30300;
-  const int TRIGGER_BA1       = 30301;
-  const int TRIGGER_BR        = 30302;
-  const int TRIGGER_BG0       = 30303;
-  const int TRIGGER_BG1       = 30304;
-  const int TRIGGER_MW0       = 30305;
-  const int TRIGGER_MW1       = 30306;
-  const int TRIGGER_MR0       = 30307;
-  const int TRIGGER_MR1       = 30308;
-  const int TRIGGER_MR2       = 30309;
-  const int TRIGGER_CM0       = 30310;
-  const int TRIGGER_CM1       = 30311;
-  const int TRIGGER_CM2       = 30312;
-  const int TRIGGER_CM3       = 30313;
-  const int TRIGGER_CM4       = 30314;
-  const int TRIGGER_AE0       = 30315;
-  const int TRIGGER_AE1       = 30316;
-  const int TRIGGER_MM0       = 30317;
-  const int TRIGGER_MM1       = 30318;
-  const int TRIGGER_CM5       = 30319;
-  const int TRIGGER_MP        = 30320;
-  const int TRIGGER_SN        = 30321;
-  const int TRIGGER_MG0       = 30322;
-  const int TRIGGER_MG1       = 30323;
-  const int TRIGGER_TH0       = 30324;
-  const int TRIGGER_TH1       = 30325;
-  const int TRIGGER_IP0       = 30330;
-  const int TRIGGER_IP1       = 30331;
-  const int TRIGGER_IP2       = 30332;
-  const int TRIGGER_IP3       = 30333;
-  const int TRIGGER_CO0       = 30340;
-  const int TRIGGER_CO1       = 30341;
-  const int TRIGGER_CO2       = 30342;
-  const int TRIGGER_CO3       = 30343;
-  const int TRIGGER_BA50      = 30350;
-  const int TRIGGER_BA51      = 30351;
-  const int TRIGGER_BA52      = 30352;
-  const int TRIGGER_BA53      = 30353;
-  const int TRIGGER_GM0       = 30360;
-  const int TRIGGER_GM1       = 30361;
-  const int TRIGGER_PI        = 30370;
-  const int TRIGGER_DL        = 30371;
-  const int TRIGGER_HM        = 30400;
-  const int TRIGGER_HM0       = 30401;
-  const int TRIGGER_HM198     = 30599;
-  const int TRIGGER_HL        = 30600;
-  const int TRIGGER_HL0       = 30601;
-  const int TRIGGER_HL198     = 30799;
-  const int TRIGGER_BF        = 30800;
-  const int TRIGGER_MF1       = 30801;
-  const int TRIGGER_TL0       = 30900;
-  const int TRIGGER_TL1       = 30901;
-  const int TRIGGER_TL2       = 30902;
-  const int TRIGGER_TL3       = 30903;
-  const int TRIGGER_TL4       = 30904;
-  const int TRIGGER_OB_POS    = (int)(0x10000000);
-  const int TRIGGER_LE_POS    = (int)(0x20000000);
-  const int TRIGGER_OB_LEAVE  = (int)(0x08000000);
+// A zero terminated string, stored in static (permanent) memory, which will never be deallocated and must not be modified
+typedef char* static_str;
 
-  /* Era Triggers */
-  const int TRIGGER_BEFORE_SAVE_GAME          = 77000; // DEPRECATED  
-  const int TRIGGER_SAVEGAME_WRITE            = 77001;
-  const int TRIGGER_SAVEGAME_READ             = 77002;
-  const int TRIGGER_KEYPRESS                  = 77003;
-  const int TRIGGER_OPEN_HEROSCREEN           = 77004;
-  const int TRIGGER_CLOSE_HEROSCREEN          = 77005;
-  const int TRIGGER_STACK_OBTAINS_TURN        = 77006;
-  const int TRIGGER_REGENERATE_PHASE          = 77007;
-  const int TRIGGER_AFTER_SAVE_GAME           = 77008;
-  const int TRIGGER_SKEY_SAVEDIALOG           = 77009; // DEPRECATED  
-  const int TRIGGER_HEROESMEET                = 77010; // DEPRECATED
-  const int TRIGGER_BEFOREHEROINTERACT        = 77010;
-  const int TRIGGER_AFTERHEROINTERACT         = 77011;
-  const int TRIGGER_ONSTACKTOSTACKDAMAGE      = 77012;
-  const int TRIGGER_ONAICALCSTACKATTACKEFFECT = 77013;
-  const int TRIGGER_ONCHAT                    = 77014;
+// A zero-terminated string located in the memory block allocated by the Era kernel. Must be released using MemFree when it is no longer necessary
+typedef char* era_str;
 
-  const int CONV_LAST = -101;
+// A zero-terminated string located in a temp memory block, which must be copied immediately
+typedef char* temp_str;
 
-  // Left-to-right
-  const int CONV_PASCAL = CONV_LAST;
+const int32_bool EXEC_DEF_CODE = true;
 
-  // Left-to-right, first three arguments in EAX, EDX, ECX
-  const int CONV_REGISTER = -102;
 
+enum ECallingConvention: int
+{
   // Right-to-left, caller clean-up
-  const int CONV_CDECL = -103;
+  CONV_CDECL = 0,
 
   // Right-to-left
-  const int CONV_STDCALL = -104;
+  CONV_STDCALL = 1,
 
   // Right-to-left, first argument in ECX
-  const int CONV_THISCALL = -105;
+  CONV_THISCALL = 2,
 
   // Right-to-left, first two arguments in ECX, EDX
-  const int CONV_FASTCALL = -106;
+  CONV_FASTCALL = 3,
 
-  const int CONV_FIRST = CONV_FASTCALL;
+  // Left-to-right, first three arguments in EAX, EDX, ECX
+  CONV_REGISTER = 4,
 
-  struct THookContext
-  {
-    int EDI, ESI, EBP, ESP, EBX, EDX, ECX, EAX;
-    int RetAddr;
-  };
+  // Left-to-right
+  CONV_PASCAL = 5,
+};
 
-  typedef BOOL (__stdcall *THookHandler) (THookContext *Context);
+enum THookType: int
+{
+  HOOKTYPE_BRIDGE = 0,
+  HOOKTYPE_CALL   = 1,
+  HOOKTYPE_JUMP   = 2,
+};
 
-  struct TEvent
-  {
-    char* Name;
-    void* Data;
-    int   DataSize;
-  };
+enum EGameMenuTarget: int
+{
+  PAGE_DEFAULT    = -1,
+  PAGE_NEW_GAME   = 101,
+  PAGE_LOAD_GAME  = 102,
+  PAGE_HIGH_SCORE = 103,
+  PAGE_CREDITS    = 104,
+  PAGE_QUIT       = 105,
+  PAGE_RESTART    = 107,
+  PAGE_MAIN       = 108,
+};
 
-  typedef int TEventParams[16];
-  typedef void (__stdcall *TEventHandler) (TEvent* Event);
+enum ESearchDirection: int
+{
+  SD_FORWARD  = -1,
+  SD_BACKWARD = -2,
+};
 
-  typedef char  TErmZVar[512];
+enum EImageResizeAlg: int
+{
+  RESIZE_ALG_NO_RESIZE = 0, // Do not apply any constaints and do not change image dimensions
+  RESIZE_ALG_STRETCH   = 1, // Assign image width and height to box width and height, scale unproportionally
+  RESIZE_ALG_CONTAIN   = 2, // Resize image so, that at least one of its dimension become same as box dimension, and the other one less or equal to box dimension
+  RESIZE_ALG_DOWNSCALE = 3, // Only downscale images proportionally, do not upscale small images
+  RESIZE_ALG_UPSCALE   = 4, // Only upscale small images proportionally, leave big images as is
+  RESIZE_ALG_COVER     = 5, // NOT IMPLEMENTED
+  RESIZE_ALG_FILL      = 6, // Use image as a tile to fill the whole box
+};
 
+typedef void* TPlugin;
 
-  /* WoG vars */
-  int*      v = (int*)      0x887664; // 1..10000
-  TErmZVar* z = (TErmZVar*) 0x9271E8; // 1..1000
-  int*      y = (int*)      0xA48D7C; // 1..100
-  int*      x = (int*)      0x91DA34; // 1..16
-  bool*     f = (bool*)     0x91F2DF; // 1..1000
-  float*    e = (float*)    0xA48F14; // 1..100
+struct THookContext
+{
+  int EDI, ESI, EBP, ESP, EBX, EDX, ECX, EAX;
+  int RetAddr;
+};
 
-  struct TGameState
-  {
-    int RootDlgId;
-    int CurrentDlgId;
-  };
+typedef int32_bool (__stdcall *THookHandler) (THookContext* Context);
 
-  typedef void  (__stdcall *TWriteAtCode) (int Count, void* Src, void* Dst);
-  typedef void* (__stdcall *THook) (void* HandlerAddr, int HookType, int PatchSize, void* CodeAddr);
-  typedef void* (__stdcall *TApiHook) (void* HandlerAddr, int HookType, void* CodeAddr);
-  typedef void  (__stdcall *TFatalError) (const char* Err);
-  typedef int   (__stdcall *TRecallAPI) (THookContext* Context, int NumArgs);
-  typedef void  (__stdcall *TRegisterHandler) (TEventHandler Handler, const char* EventName);
-  typedef void  (__stdcall *TFireEvent) (const char* EventName, void* EventData, int DataSize);
-  typedef void* (__stdcall *TLoadTxt) (const char* Name);
-  typedef void  (__stdcall *TExecErmCmd) (const char* CmdStr);
-  typedef void  (__stdcall *TReloadErm) ();
-  typedef void  (__stdcall *TExtractErm) ();
-  typedef void  (__stdcall *TFireErmEvent) (int EventID);
-  typedef void  (__stdcall *TClearAllIniCache) ();
-  typedef void  (__stdcall *TClearIniCache) (const char* FileName);
-  typedef bool  (__stdcall *TReadStrFromIni) (const char* Key, const char* SectionName, const char* FilePath, char* Res);
-  typedef bool  (__stdcall *TWriteStrToIni) (const char* Key, const char* Value, const char* SectionName, const char* FilePath);
-  typedef bool  (__stdcall *TSaveIni) (const char* FilePath);
-  typedef void  (__stdcall *TNameColor) (int Color32, const char* Name);
-  typedef void  (__stdcall *TWriteSavegameSection) (int DataSize, void* Data, const char* SectionName);
-  typedef int   (__stdcall *TReadSavegameSection) (int DataSize, void* Data, const char* SectionName);
-  typedef void  (__stdcall *TGetGameState) (TGameState* GameState);
-  typedef int   (__stdcall *TGetButtonID) (const char* ButtonName);
-  typedef bool  (__stdcall *TPatchExists) (const char* PatchName);
-  typedef bool  (__stdcall *TPluginExists) (const char* PluginName);
-  typedef void  (__stdcall *TRedirectFile) ();
-  typedef void  (__stdcall *TGlobalRedirectFile) ();
-  typedef void  (__stdcall *TRedirectMemoryBlock) (void* OldAddr, int BlockSize, void* NewAddr);
-  typedef void* (__stdcall *TGetRealAddr) (void* Addr);
-  typedef void  (__stdcall *TSaveEventParams) ();
-  typedef void  (__stdcall *TRestoreEventParams) ();
-  typedef void  (__stdcall *TReportPluginVersion) (const char* VersionLine);
-  typedef const char* (__stdcall *TGetEraVersion) ();
-  typedef int   (__stdcall *TGetVersionNum) ();
-  typedef char* (__stdcall *TToStaticStr) (const char* Str);
-  typedef char* (__stdcall *TTr) (const char* key, const char** params, int highParams);
-  typedef void  (__stdcall *TMemFree) (const void* buf);
-  typedef void  (__stdcall *TNotifyError) (const char* error);
-  typedef int   (__stdcall *TGetDefaultMsgBoxItId) ();
-  typedef int   (__stdcall *TGetMaskMsgBoxItId) ();
+struct TEvent
+{
+  char* Name;
+  void* Data;
+  int   DataSize;
+};
 
-  /**
-   * Replaces original function with the new one with the same prototype and 1-2 extra arguments.
-   * Calling convention is changed to STDCALL. The new argument is callable pointer, which can be used to
-   * execute original function. The pointer is passed as THE FIRST argument. If custom parameter address
-   * is given, the value of custom parameter will be passed to handler as THE SECOND argument. If AppliedPatch
-   * pointer is given, it will be assigned an opaque pointer to applied patch data structure. This
-   * pointer can be used to rollback the patch (remove splicing).
-   * Returns address of the bridge to original function.
-   * 
-   * Example:
-   *   int custom_param = 700;
-   *   Splice((void*) 0x401000, (void*) MainProc, CONV_STDCALL, 2, &custom_param);
-   *   int __stdcall (void* orig_func, int custom_param, int arg1, int arg2) MainProc {...}
-   */
-  typedef void* (__stdcall *TSplice) (void* OrigFunc, void* HandlerFunc, int CallingConv, int NumArgs, int* CustomParam, void** AppliedPatch);
+typedef void (__stdcall *TEventHandler) (TEvent* Event);
 
-  /**
-   * Calls handler function, when execution reaches specified address. Handler receives THookContext pointer.
-   * If it returns true, overwritten commands are executed. Otherwise overwritten commands are skipped.
-   * Change Context.RetAddr field to return to specific address after handler finishes execution with FALSE result.
-   */
-  typedef void* (__stdcall *THookCode) (void* Addr, THookHandler HandlerFunc, void** AppliedPatch);
+struct TGameState
+{
+  int RootDlgId;
+  int CurrentDlgId;
+};
 
-  const int RESIZE_ALG_NO_RESIZE = 0; // Do not apply any constaints and do not change image dimensions
-  const int RESIZE_ALG_STRETCH   = 1; // Assign image width and height to box width and height, scale unproportionally
-  const int RESIZE_ALG_CONTAIN   = 2; // Resize image so, that at least one of its dimension become same as box dimension, and the other one less or equal to box dimension
-  const int RESIZE_ALG_DOWNSCALE = 3; // Only downscale images proportionally, do not upscale small images
-  const int RESIZE_ALG_UPSCALE   = 4; // Only upscale small images proportionally, leave big images as is
-  const int RESIZE_ALG_COVER     = 5; // NOT IMPLEMENTED
-  const int RESIZE_ALG_FILL      = 6; // Use image as a tile to fill the whole box
-
-  /**
-   * Loads Pcx16 resource with rescaling support. Values <= 0 are considered 'auto'. If it's possible, images are scaled proportionally.
-   * Resource name (name in binary resource tree) can be either fixed or automatic. Pass empty PcxName for automatic name.
-   * If PcxName exceeds 12 characters, it's replaced with valid unique name. Check name field of result.
-   * If resource is already registered and has proper format, it's returned with RefCount increased.
-   * Result image dimensions may differ from requested if fixed PcxName is specified. Use automatic naming
-   * to load image of desired size for sure.
-   * Default image is returned in case of missing file and user is notified.
-   */
-  typedef void* (__stdcall *TLoadImageAsPcx16) (const char* FilePath, const char* PcxName, int Width, int Height, int MaxWidth, int MaxHeight, int ResizeAlg);
-  // 2.8.3 typedef void* (__stdcall *TLoadImageAsPcx16) (const char* FilePath, const char* PcxName, int Width, int Height);
- 
-
-  TEventParams* EventParams = NULL;
+struct TMultiPurposeDlgSetup
+{
+	char* Title;             // Top dialog title
+	char* InputFieldLabel;   // If specified, user will be able to enter arbitrary text in input field
+	char* ButtonsGroupLabel; // If specified, right buttons group will be displayed
+	char* InputBuf;          // OUT. Field to write a pointer to a temporary buffer with user input. Copy this text to safe location immediately
+	int        SelectedItem;      // OUT. Field to write selected item index to (0-3 for buttons, -1 for Cancel)
+	char* ImagePaths[4];     // All paths are relative to game root directory or custom absolute paths
+	char* ImageHints[4];
+	char* ButtonTexts[4];
+	char* ButtonHints[4];
+	int32_bool ShowCancelBtn;
+};
 
 
-  TApiHook              ApiHook               = NULL;
-  TClearAllIniCache     ClearAllIniCache      = NULL;
-  TClearIniCache        ClearIniCache         = NULL;
-  TExecErmCmd           ExecErmCmd            = NULL;
-  TExtractErm           ExtractErm            = NULL;
-  TFatalError           FatalError            = NULL;
-  TFireErmEvent         FireErmEvent          = NULL;
-  TFireEvent            FireEvent             = NULL;
-  TGetButtonID          GetButtonID           = NULL;
-  TGetEraVersion        GetEraVersion         = NULL;
-  TGetVersionNum        GetVersionNum         = NULL;
-  TGetGameState         GetGameState          = NULL;
-  TGetRealAddr          GetRealAddr           = NULL;
-  TGlobalRedirectFile   GlobalRedirectFile    = NULL;
-  THook                 Hook                  = NULL;
-  THookCode             HookCode              = NULL;
-  TLoadImageAsPcx16     LoadImageAsPcx16      = NULL;
-  TLoadTxt              LoadTxt               = NULL;
-  TMemFree              MemFree               = NULL;
-  TNameColor            NameColor             = NULL;
-  TNotifyError          NotifyError           = NULL;
-  TPatchExists          PatchExists           = NULL;
-  TPluginExists         PluginExists          = NULL;
-  TReadSavegameSection  ReadSavegameSection   = NULL;
-  TReadStrFromIni       ReadStrFromIni        = NULL;
-  TRecallAPI            RecallAPI             = NULL;
-  TRedirectFile         RedirectFile          = NULL;
-  TRedirectMemoryBlock  RedirectMemoryBlock   = NULL;
-  TRegisterHandler      RegisterHandler       = NULL;
-  TReloadErm            ReloadErm             = NULL;
-  TReportPluginVersion  ReportPluginVersion   = NULL;
-  TRestoreEventParams   RestoreEventParams    = NULL;
-  TSaveEventParams      SaveEventParams       = NULL;
-  TSaveIni              SaveIni               = NULL;
-  TSplice               Splice                = NULL;
-  TToStaticStr          ToStaticStr           = NULL;
-  TTr                   _tr                   = NULL;
-  TWriteAtCode          WriteAtCode           = NULL;
-  TWriteSavegameSection WriteSavegameSection  = NULL;
-  TWriteStrToIni        WriteStrToIni         = NULL;
-  TGetDefaultMsgBoxItId GetDefaultMsgBoxItId  = NULL;
-  TGetMaskMsgBoxItId    GetMaskMsgBoxItId     = NULL;
+typedef char TErmZVar[512];
+typedef int TXVars[16];
 
-  //std::string trText(const char *key) {
-  //    char* buf = _tr(key, NULL, -1);
-  //    std::string result = buf;
-  //    MemFree(buf);
 
-  //    return result;
-  //}
+ERA_API int* v;      // 1..10000
+ERA_API TErmZVar* z; // 1..1000
+ERA_API int* y;      // 1..100
+ERA_API int* x;      // 1..16
+ERA_API bool* f;     // 1..1000
+ERA_API float* e;    // 1..100
 
-   char* tr (const char *key) {
-      char* buf = _tr(key, NULL, -1);
-      char* result = ToStaticStr(buf);
-      MemFree(buf);
 
-      return result;
-  }
+/**
+ * Loads Era library and imports necessary functions. Must be called as soon as possible.
+ * @param PluginDllHandle DLL module handle, which is passed to DLLMain entry as the first parameter.
+ * @param PluginName      Plugin name or nullptr to use DLL file name. If you use patcher_x86 by Baratorch, specify the same name, as in CreateInstance call.
+ */
+void ConnectEra (HINSTANCE PluginDllHandle, const char* PluginName = nullptr);
 
-  std::string IntToStr (int value) {
-    char buf[64];
-    sprintf(buf, "%d", value);
-    
-    return buf;
-  }
+/** Creates new plugin API instance for particular DLL plugin. Pass real dll name with extension. Returns plugin instance or NULL is plugin is already created */
+ERA_API TPlugin (__stdcall *CreatePlugin) (const char* Name);
 
-  /**
-   * Assigns new string value to buffer.
-   * @param  Buf      Buffer to change contents of.
-   * @param  NewValue New string value.
-   * @param  BufSize  Maximal buffer size.
-   * @return void
-   */
-  void SetPcharValue (char *Buf, const char *NewValue, int BufSize = -1) {
-    if (BufSize < 0) {
-      lstrcpyA(Buf, NewValue);
-    } else if (BufSize > 0) {
-      int NumBytesToCopy = lstrlenA(NewValue);
-      NumBytesToCopy >= BufSize && (NumBytesToCopy = BufSize - 1);
-      memcpy(Buf, NewValue, NumBytesToCopy);
-      Buf[NumBytesToCopy] = 0;
-    }
-  }
 
-  HINSTANCE hEra;
-  HINSTANCE hAngel;
+// ======================= EVENTS ======================= //
+/** Adds handler to be called when specific named event triggers, ex. "OnAfterWoG" or "OnSavegameWrite" */
+ERA_API void (__stdcall *RegisterHandler) (TEventHandler Handler, const char* EventName);
 
-  void ConnectEra ()
-  {
-    hAngel                = LoadLibraryA("angel.dll");
-    EventParams           = (TEventParams*)         GetProcAddress(hAngel, "EventParams");
-    RestoreEventParams    = (TRestoreEventParams)   GetProcAddress(hAngel, "RestoreEventParams");
-    SaveEventParams       = (TSaveEventParams)      GetProcAddress(hAngel, "SaveEventParams");
-    /***/
-    hEra                  = LoadLibraryA("era.dll");
-    _tr                   = (TTr)                   GetProcAddress(hEra, "tr");
-    ApiHook               = (TApiHook)              GetProcAddress(hEra, "ApiHook");
-    ClearAllIniCache      = (TClearAllIniCache)     GetProcAddress(hEra, "ClearAllIniCache");
-    ClearIniCache         = (TClearIniCache)        GetProcAddress(hEra, "ClearIniCache");
-    ExecErmCmd            = (TExecErmCmd)           GetProcAddress(hEra, "ExecErmCmd");
-    ExtractErm            = (TExtractErm)           GetProcAddress(hEra, "ExtractErm");
-    FatalError            = (TFatalError)           GetProcAddress(hEra, "FatalError");
-    FireErmEvent          = (TFireErmEvent)         GetProcAddress(hEra, "FireErmEvent");
-    FireEvent             = (TFireEvent)            GetProcAddress(hEra, "FireEvent");
-    GetButtonID           = (TGetButtonID)          GetProcAddress(hEra, "GetButtonID");
-    GetEraVersion         = (TGetEraVersion)        GetProcAddress(hEra, "GetVersion");
-    GetVersionNum         = (TGetVersionNum)        GetProcAddress(hEra, "GetVersionNum");
-    GetGameState          = (TGetGameState)         GetProcAddress(hEra, "GetGameState");
-    GetRealAddr           = (TGetRealAddr)          GetProcAddress(hEra, "GetRealAddr");
-    GlobalRedirectFile    = (TGlobalRedirectFile)   GetProcAddress(hEra, "GlobalRedirectFile");
-    Hook                  = (THook)                 GetProcAddress(hEra, "Hook");
-    HookCode              = (THookCode)             GetProcAddress(hEra, "HookCode");
-    LoadImageAsPcx16      = (TLoadImageAsPcx16)     GetProcAddress(hEra, "LoadImageAsPcx16");
-    LoadTxt               = (TLoadTxt)              GetProcAddress(hEra, "LoadTxt");
-    MemFree               = (TMemFree)              GetProcAddress(hEra, "MemFree");
-    NameColor             = (TNameColor)            GetProcAddress(hEra, "NameColor");
-    NotifyError           = (TNotifyError)          GetProcAddress(hEra, "NotifyError");
-    PatchExists           = (TPatchExists)          GetProcAddress(hEra, "PatchExists");
-    PluginExists          = (TPluginExists)         GetProcAddress(hEra, "PluginExists");
-    ReadSavegameSection   = (TReadSavegameSection)  GetProcAddress(hEra, "ReadSavegameSection");
-    ReadStrFromIni        = (TReadStrFromIni)       GetProcAddress(hEra, "ReadStrFromIni");
-    RecallAPI             = (TRecallAPI)            GetProcAddress(hEra, "RecallAPI");
-    RedirectFile          = (TRedirectFile)         GetProcAddress(hEra, "RedirectFile");
-    RedirectMemoryBlock   = (TRedirectMemoryBlock)  GetProcAddress(hEra, "RedirectMemoryBlock");
-    RegisterHandler       = (TRegisterHandler)      GetProcAddress(hEra, "RegisterHandler");
-    ReloadErm             = (TReloadErm)            GetProcAddress(hEra, "ReloadErm");
-    ReportPluginVersion   = (TReportPluginVersion)  GetProcAddress(hEra, "ReportPluginVersion");
-    SaveIni               = (TSaveIni)              GetProcAddress(hEra, "SaveIni");
-    Splice                = (TSplice)               GetProcAddress(hEra, "Splice");
-    ToStaticStr           = (TToStaticStr)          GetProcAddress(hEra, "ToStaticStr");
-    WriteAtCode           = (TWriteAtCode)          GetProcAddress(hEra, "WriteAtCode");
-    WriteSavegameSection  = (TWriteSavegameSection) GetProcAddress(hEra, "WriteSavegameSection");
-    WriteStrToIni         = (TWriteStrToIni)        GetProcAddress(hEra, "WriteStrToIni");
-    GetDefaultMsgBoxItId  = (TGetDefaultMsgBoxItId) GetProcAddress(hEra, "_GetPreselectedDialog8ItemId");
-    GetMaskMsgBoxItId     = (TGetMaskMsgBoxItId)    GetProcAddress(hEra, "_GetDialog8SelectablePicsMask");
-  }
-  
-  #pragma pack(pop)
+/** Triggers named event, passing custom event data of specified length to its handlers */
+ERA_API void (__stdcall *FireEvent) (const char* EventName, void* EventData, int DataSize);
+// ===================== END EVENTS ===================== //
+
+
+// ======================= INTERNATIONALIZATION ======================= //
+/** Changes current language code in memory without altering ini files or reloading already loaded data */
+ERA_API int (__stdcall *SetLanguage) (const char* NewLanguage);
+
+/** Reloads all json files from "Lang" directory and current language subdirectory */
+ERA_API void (__stdcall *ReloadLanguageData) ();
+
+/** Returns persisted/static translation for a given key */
+static_str tr (const char* key);
+
+/**
+ * Returns translation for given complex key ('xxx.yyy.zzz') with substituted parameters.
+ * Pass vector of (parameter name, parameter value) pairs to substitute named parameters.
+ * Example: Mod\Lang\*.json file: { "eqs": { "greeting": "Hello, @name@" } }
+ * Example: ShowMessage(tr("eqs.greeting", { "name", "igrik" }).c_str());
+ *
+ * @param  key    Key to get translation for.
+ * @param  params Vector of (parameter name, parameter value pairs).
+ * @return        Translation string.
+ */
+std::string tr(const char* key, const std::vector<std::string>& params);
+
+/** Translates given key, using pairs of (key, value) params for translation */
+ERA_API era_str (__stdcall *_tr) (const char* key, const char** params, int LastParamsIndex);
+
+/** Translates given key, using pairs of (key, value) params for translation. Returns temporary buffer address, which must be immediately copied */
+ERA_API temp_str (__stdcall *trTemp) (const char* key, const char** params, int LastParamsIndex);
+
+/** Translates given key and returns persistent pointer to translation */
+ERA_API static_str (__stdcall *trStatic) (const char* key);
+// ===================== END INTERNATIONALIZATION ===================== //
+
+
+// ======================= ERM ======================= //
+ERA_API int (__stdcall *AllocErmFunc) (const char* EventName, int &EventId);
+ERA_API void (__stdcall *FireErmEvent) (int EventId);
+ERA_API void (__stdcall *ExecErmCmd) (const char* CmdStr);
+ERA_API void (__stdcall *ExtractErm) ();
+ERA_API void (__stdcall *ReloadErm) ();
+ERA_API void (__stdcall *NameTrigger) (int TriggerId, const char *Name);
+
+/**
+ * Compiles single ERM command without "!!" prefix and conditions and saves its compiled code in persisted memory storage.
+ * Returns non-nil opaque pointer on success and NULL on failure. Trailing semicolon is optional.
+ */
+ERA_API void* (__stdcall *PersistErmCmd) (const char* CmdStr);
+
+/** Executes previously compiled and persisted ERM command. Use PersistErmCmd API for compilation */
+ERA_API void (__stdcall *ExecPersistedErmCmd) (void* PersistedCmd);
+
+/** Displays regular ERM error dialog and can be used for ERM scripts error reporting and debugging */
+ERA_API void (__stdcall *ShowErmError) (const char *Error);
+
+/** Returns pointer to array of arguments, that will be passed to ERM trigger as x-vars on ERM event generation */
+ERA_API TXVars* (__stdcall *GetArgXVars) ();
+
+/** Returns pointer to array of ERM x-vars copy after ERM has been handled. Some variables may be treated as result */
+ERA_API TXVars* (__stdcall *GetRetXVars) ();
+
+/** Returns human readable string for ERM event ID. Usually it's ERM trigger human readable name or ERM function name. */
+ERA_API era_str (__stdcall *GetTriggerReadableName) (int TriggerId);
+
+ERA_API int (__stdcall *GetAssocVarIntValue) (const char* VarName);
+ERA_API era_str (__stdcall *GetAssocVarStrValue) (const char* VarName);
+ERA_API void (__stdcall *SetAssocVarIntValue) (const char* VarName, int NewValue);
+ERA_API void (__stdcall *SetAssocVarStrValue) (const char* VarName, const char* NewValue);
+
+// ===================== END ERM ===================== //
+
+
+// ======================= SHARED GLOBAL MEMORY ======================= //
+ERA_API int (__stdcall *GetEraRegistryIntValue) (const char* VarName);
+ERA_API era_str (__stdcall *GetEraRegistryStrValue) (const char* VarName);
+ERA_API void (__stdcall *SetEraRegistryIntValue) (const char* VarName, int NewValue);
+ERA_API void (__stdcall *SetEraRegistryStrValue) (const char* VarName, const char* NewValue);
+// ===================== END SHARED GLOBAL MEMORY ===================== //
+
+
+// ======================= CUSTOMIZABLE API ======================= //
+typedef int32_bool (__stdcall *TIsCommanderId) (int MonId);
+ERA_API TIsCommanderId (__stdcall *SetIsCommanderIdFunc) (TIsCommanderId NewImpl);
+
+typedef int32_bool (__stdcall *TIsElixirOfLifeStack) (uint8_t* BattleStack);
+ERA_API TIsElixirOfLifeStack (__stdcall *SetIsElixirOfLifeStackFunc) (TIsElixirOfLifeStack NewImpl);
+
+ERA_API int32_bool (__stdcall *IsCommanderId) (int MonId);
+ERA_API void (__stdcall *SetRegenerationAbility) (int32_t MonId, int32_t Chance, int32_t HitPoints, int32_t HpPercents);
+ERA_API void (__stdcall *SetStdRegenerationEffect) (int32_t Level7Percents, int32_t HpPercents);
+// ===================== END CUSTOMIZABLE API ===================== //
+
+
+// ======================= MAP RELATED FUNCTIONS ======================= //
+ERA_API int32_bool (__stdcall *IsCampaign) ();
+ERA_API era_str (__stdcall *GetCampaignFileName) ();
+ERA_API era_str (__stdcall *GetMapFileName) ();
+ERA_API int (__stdcall *GetCampaignMapInd) ();
+
+/** Works the same as UN:U with fast search syntax, but does not raise error on no more objects, returns success flag; Direction is -1 for FORWARD and -2 for BACKWARD. */
+ERA_API int32_bool (__stdcall *FindNextObject) (int ObjType, int ObjSubtype, int* x, int *y, int*z, ESearchDirection Direction);
+// ===================== END MAP RELATED FUNCTIONS ===================== //
+
+
+// ======================= INI FILES ======================= //
+/** Forgets all cached data for specified ini file. Any read/write operation will lead to its re-reading and re-parsing */
+ERA_API void (__stdcall *ClearAllIniCache) ();
+
+/** Forgets all cached data for all ini files */
+ERA_API void (__stdcall *ClearIniCache) (const char* FilePath);
+
+/** Replaces ini file cache in memory with an empty one. Use it for recreating ini files from scratch, when you don't need previously cached data and original file on disk */
+ERA_API void (__stdcall *EmptyIniCache) (const char* FilePath);
+
+/** Reads entry from ini file. The fill will be cached in memory for further fast reading */
+ERA_API int32_bool (__stdcall *ReadStrFromIni) (const char* Key, const char* SectionName, const char* FilePath, char* ResultBuffer);
+
+/** Writes new value to ini file cache in memory. Automatically loads ini to cache if necessary */
+ERA_API int32_bool (__stdcall *WriteStrToIni) (const char* Key, const char* Value, const char* SectionName, const char* FilePath);
+
+/** Loads two ini files and merges source ini entries with target ini entries in cache without overwriting existing entries */
+ERA_API int32_bool (__stdcall *MergeIniWithDefault) (const char* TargetPath, const char* SourcePath);
+
+/** Saves cached ini file data on disk */
+ERA_API int32_bool (__stdcall *SaveIni) (const char* FilePath);
+// ===================== END INI FILES ===================== //
+
+
+// ======================= HOOKS AND PATCHES ======================= //
+/**
+ * Installs new hook at specified address. Returns pointer to bridge with original code if any. Optionally specify address of a pointer to write applied patch structure
+ * pointer to. It will allow to rollback the patch later. MinCodeSize specifies original code size to be erased (nopped). Use 0 in most cases.
+ *
+ * In case of bridge hook type calls handler function, when execution reaches specified address. Handler receives THookContext pointer.
+ * If it returns true, overwritten commands are executed. Otherwise overwritten commands are skipped.
+ * Change Context.RetAddr field to return to specific address after handler finishes execution with FALSE result.
+ * The hook bridge code is always thread safe.
+ */
+void* Hook (void* Addr, THookHandler HandlerFunc, void** AppliedPatch = nullptr, int MinCodeSize = 0, THookType HookType = HOOKTYPE_BRIDGE);
+ERA_API void* (__stdcall *_Hook) (TPlugin plugin, void* Addr, THookHandler HandlerFunc, void** AppliedPatch, int MinCodeSize, THookType HookType);
+
+/**
+ * Replaces original function with the new one with the same prototype and 1-2 extra arguments.
+ * Calling convention is changed to STDCALL. The new argument is callable pointer, which can be used to
+ * execute original function. The pointer is passed as THE FIRST argument. If custom parameter address
+ * is given, the value of custom parameter will be passed to handler as THE SECOND argument. If AppliedPatch
+ * pointer is given, it will be assigned an opaque pointer to applied patch data structure. This* pointer can
+ * be used to rollback the patch (remove splicing).
+ *
+ * Returns address of the bridge to original function.
+ *
+ * Example:
+ *   int custom_param = 700;
+ *   Splice((void*) 0x401000, (void*) MainProc, CONV_STDCALL, 2, &custom_param);
+ *   int __stdcall (void* orig_func, int custom_param, int arg1, int arg2) MainProc {...}
+ */
+void* Splice (void* OrigFunc, void* HandlerFunc, int CallingConv, int NumArgs, int* CustomParam = nullptr, void** AppliedPatch = nullptr);
+ERA_API void* (__stdcall *_Splice) (TPlugin plugin, void* OrigFunc, void* HandlerFunc, int CallingConv, int NumArgs, int* CustomParam, void** AppliedPatch);
+
+/** Writes Count bytes from Src buffer to Dst code block */
+ERA_API void (__stdcall *WriteAtCode) (int Count, void* Src, void* Dst);
+
+/** Returns applied patch size in bytes (number of ovewritten bytes) */
+ERA_API int (__stdcall *GetAppliedPatchSize) (void* AppliedPatch);
+
+/** Returns true if applied patch was overwritten */
+ERA_API int32_bool (__stdcall *IsPatchOverwritten) (void* AppliedPatch);
+
+/** Rollback patch and free its memory. Do not use it afterwards */
+ERA_API void (__stdcall *RollbackAppliedPatch) (void* pointer);
+
+/** Frees applied patch structure. Use it if you don't plan to rollback it at all */
+ERA_API void (__stdcall *FreeAppliedPatch) (void* pointer);// (*  *)
+// ===================== END HOOKS AND PATCHES ===================== //
+
+
+// ======================= DEBUG AND INFO ======================= //
+/** Displays system message box with error and terminates application */
+ERA_API void (__stdcall *FatalError) (const char* Err);
+
+/** Displays system message box with error. Terminates application only if Debug.AbortOnError = 1 in heroes3.ini */
+ERA_API void (__stdcall *NotifyError) (const char* error);
+
+/** Generates full Era debug info (scripts, plugins, patches, context) and saves all the files in Debug\Era directory */
+ERA_API void (__stdcall *GenerateDebugInfo) ();
+
+/** Returns Era version string */
+ERA_API static_str (__stdcall *GetEraVersion) ();
+
+/** Returns Era version number in 'X.X.XX' format. 3915 means 3.9.15 */
+ERA_API int (__stdcall *GetVersionNum) ();
+
+/** Addes line to plugin versions message, shown on RMB on Credits button. The proposed format is: "{plugin name} vx.x.x". The function must be called in OnReportVersion event */
+ERA_API void (__stdcall *ReportPluginVersion) (const char* VersionLine);
+
+/** Returns 32-character unique key for current game process. The ID will be unique between multiple game runs */
+ERA_API static_str (__stdcall *GetProcessGuid) ();
+
+/** Returns IDs of game root dialog and current dialog. The first item in dialog class VMT tables is used as ID */
+ERA_API void (__stdcall *GetGameState) (TGameState* GameState);
+
+/**
+ * Appends entry to "log.txt" file in the following form: >> [EventSource]: [Operation] #13#10 [Description].
+ * Example: WriteLog("SaveGame", "Save monsters section", "Failed to detect monster array size")
+ */
+ERA_API int32_bool (__stdcall *WriteLog) (const char* EventSource, const char* Operation, const char* Description);
+// ===================== END DEBUG AND INFO ===================== //
+
+
+// ======================= SAVEGAMES ======================= //
+/** Appends data portion to a certain named savegame section during game saving */
+ERA_API void (__stdcall *WriteSavegameSection) (int DataSize, void* Data, const char* SectionName);
+
+/** Reads data portion from a certain named savegame section during game loading. Returns number of bytes actually loaded */
+ERA_API int (__stdcall *ReadSavegameSection) (int DataSize, void* Data, const char* SectionName);
+// ===================== END SAVEGAMES ===================== //
+
+
+// ======================= RESOURCES ======================= //
+/** Returns ID of game button by its unique name, specified in *.btn file */
+ERA_API int (__stdcall *GetButtonID) (const char* ButtonName);
+
+/** Checks if binary patch exist. Provide full file name with extension like 'no prisons.bin' */
+ERA_API int32_bool (__stdcall *PatchExists) (const char* PatchName);
+
+/** Tries to load PNG replacement for pcx file name and returns success flag */
+ERA_API int32_bool (__stdcall *PcxPngExists) (const char* PcxName);
+
+/** Check if plugin with given name exists. Omit the extension. Era automatically searches for both deprecated 'dll' and modern 'era' extensions */
+ERA_API int32_bool (__stdcall *PluginExists) (const char* PluginName);
+
+/** Creates resource redirection for current savegame only. Whenever an attempt to load non-cached resource with OldFileName will be made, NewFileName will be used instead */
+ERA_API void (__stdcall *RedirectFile) (const char* OldFileName, const char* NewFileName);
+
+/**
+ * Creates global resource redirection. Whenever an attempt to load non-cached resource with OldFileName will be made, NewFileName will be used instead.
+ * Can be overriden by RedirectFile.
+ */
+ERA_API void (__stdcall *GlobalRedirectFile) (const char* OldFileName, const char* NewFileName);
+// ===================== END RESOURCES ===================== //
+
+
+// ======================= MEMORY ======================= //
+/**
+ * Stores string contents in persistent memory under unique address. Returns existing address if string with the same contents exists.
+ * The functions serves two purposes: data deduplication (only one string buffer for particular contents will be kept)
+ * and pointer persistence (the pointer buffer will never be freed and thus can be safely used in dialogs and game structures).
+ */
+ERA_API static_str (__stdcall *ToStaticStr) (const char* Str);
+
+/** Releases memory block, allocated by Era's memory manager */
+ERA_API void (__stdcall *MemFree) (const void* Buf);
+
+/**
+ * Registers memory consumer (plugin with own memory manager) and returns address of allocated memory counter, which
+ * consumer should atomically increase and decrease in malloc/calloc/realloc/free operations.
+ */
+ERA_API size_t* (__stdcall *RegisterMemoryConsumer) (const char* ConsumerName);
+
+/* Writes memory consumption info to main log file */
+ERA_API void (__stdcall *LogMemoryState) ();
+
+/** Informs Era about moved game array or structure into another location. Specify old array address, old array size and new address */
+ERA_API void (__stdcall *RedirectMemoryBlock) (void* OldAddr, int BlockSize, void* NewAddr);
+
+/** Returns final address for old known game array or structure. Uses information from all RedirectMemoryBlock calls. If nothing is found, returns address itself */
+ERA_API void* (__stdcall *GetRealAddr) (void* Addr);
+
+/**
+ * Assigns new string value to buffer.
+ * @param Buf      Buffer to change contents of.
+ * @param NewValue New string value.
+ * @param BufSize  Maximal buffer size or -1 to ignore it (buffer overflow may occur).
+ */
+void SetPcharValue(char* Buf, const char* NewValue, int BufSize);
+// ===================== END MEMORY ===================== //
+
+
+// ======================= CRYPTO ======================= //
+/** Calculates data block hash */
+ERA_API int (__stdcall *Hash32) (const char* data, int DataSize);
+
+/** Generates new random value using SplitMix32 algorithm and modifies input seed value */
+ERA_API int (__stdcall *SplitMix32) (int* seed, int MinValue, int MaxValue);
+
+/**
+ * Generates random value in specified range with additional custom parameter used only in deterministic generators to produce different outputs for sequence of generations.
+ * For instance, if you need to generate random value in battle for each enemy stack, you could use stack ID or loop variable for FreeParam. But for better generation quality
+ * use (stackID XOR UNIQUE_ACTION_MASK) and define UNIQUE_ACTION_MASK constant as unique int32 pre-generated value. In network battles multiple random value generations with
+ * the same parameters produce the same output until next action is performed. This function allows to bring back randomness to multiple same time generations.
+ */
+ERA_API int (__stdcall *RandomRangeWithFreeParam) (int MinValue, int MaxValue, int FreeParam);
+// ===================== END CRYPTO ===================== //
+
+
+// ======================= GRAPHICS ======================= //
+/**
+ * Loads Pcx16 resource with rescaling support. Values <= 0 are considered 'auto'. If it's possible, images are scaled proportionally.
+ * Resource name (name in binary resource tree) can be either fixed or automatic. Pass empty PcxName for automatic name.
+ * If PcxName exceeds 12 characters, it's replaced with valid unique name. Check name field of result.
+ * If resource is already registered and has proper format, it's returned with RefCount increased.
+ * Result image dimensions may differ from requested if fixed PcxName is specified. Use automatic naming
+ * to load image of desired size for sure.
+ * Default image is returned in case of missing file and user is notified.
+ */
+ERA_API void* (__stdcall *LoadImageAsPcx16) (const char* FilePath, const char* PcxName, int Width, int Height, int MaxWidth, int MaxHeight, EImageResizeAlg ResizeAlg);
+// ===================== END GRAPHICS ===================== //
+
+
+// ======================= ERA RICH TEXT SUPPORT ======================= //
+/** Gives a name to a certain ARGB int32 color to use in colored texts */
+ERA_API void (__stdcall *NameColor) (int Color32, const char* Name);
+// ===================== END ERA RICH TEXT SUPPORT ===================== //
+
+
+// ======================= DIALOGS AND MENUS ======================= //
+/** Display in-game native message dialog with OK button */
+ERA_API void (__stdcall *ShowMessage) (const char *Message);
+
+/** Raises special exception, closing all dialogs and forcing the game to return to the main menu */
+ERA_API int (__stdcall *FastQuitToGameMenu) (EGameMenuTarget TargetScreen);
+
+/** Displayes customizable configured multipurpose dialog and returns selected button ID (1..4) or -1 for Cancel */
+ERA_API int (__stdcall *ShowMultiPurposeDlg) (TMultiPurposeDlgSetup* Setup);
+
+/** Replaces current multipurpose dialog handler/implementor. Returns old handler if any */
+typedef int (__stdcall *TShowMultiPurposeDlgFunc) (TMultiPurposeDlgSetup * Setup);
+ERA_API TShowMultiPurposeDlgFunc (__stdcall *SetMultiPurposeDlgHandler) (TShowMultiPurposeDlgFunc NewImpl);
+// ===================== END DIALOGS AND MENUS ===================== //
+
+
+// ======================= UTILITIES ======================= //
+/** Converts integer to std::string */
+std::string IntToStr(int value);
+
+/** Formats given positive or negative quantity to human-readable string with desired constraints on length */
+ERA_API int (__stdcall *FormatQuantity) (int value, char* buffer, int BufSize, int MaxLen, int MaxDigits);
+
+/** Converts integer to string, separating each three digit group by "era.locale.thousand_separator" character. */
+ERA_API int (__stdcall *DecorateInt) (int value, char* buffer, int IgnoreSmallNumbers);
+// ===================== END UTILITIES ===================== //
+
+#pragma pack(pop)
 }
