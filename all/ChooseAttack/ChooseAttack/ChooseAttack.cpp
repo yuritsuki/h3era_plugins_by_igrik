@@ -1,5 +1,3 @@
-#define WINDOWS_IGNORE_PACKING_MISMATCH
-
 #include "..\..\..\include\homm3.h"
 #include "..\..\..\include\era.h"
 
@@ -557,9 +555,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
     if ((ul_reason_for_call == DLL_PROCESS_ATTACH) && (!plugin_On)) {
         plugin_On = 1;
 
+        constexpr LPCSTR pluginName= "igrik.choose_attack_button";
+        Era::ConnectEra(hModule, pluginName);
+
         _P = GetPatcher();
-        _PI = _P->CreateInstance("igrik.choose_attack_button");
-        Era::ConnectEra();
+        _PI = _P->CreateInstance((char*)pluginName);
 
         // инициализация параметров (при старте карты)
         _PI->WriteLoHook(0x4EEAC0, LoHook_InitTxtFiles);
