@@ -94,6 +94,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\include\era.cpp" />
     <ClCompile Include="..\..\..\include\HoMM3_GUI.cpp" />
     <ClCompile Include="..\..\..\include\HoMM3_Res.cpp" />
     <ClCompile Include="wog native dialogs.cpp" />

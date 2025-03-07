@@ -297,14 +297,17 @@ signed int __stdcall Y_New_MsgBox_Proc(HiHook* hook, _EventMsg_* msg)
 
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
-
+typedef int(__stdcall* TGetDefaultMsgBoxItId) ();
+typedef int(__stdcall* TGetMaskMsgBoxItId) ();
+TGetDefaultMsgBoxItId GetDefaultMsgBoxItId = NULL;
+TGetMaskMsgBoxItId GetMaskMsgBoxItId = NULL;
 // установка жёлтой рамки (создание активного элемента по умолчанию для ERA 3)
 int __stdcall Y_New_MsgBox_SetDefaultFrameEnabled(LoHook* h, HookContext* c)
 {
     _Dlg_* dlg = P_Dlg_MsgBox;
 
     // дефолтная маска: читаем маску, которую передала нам ERA 
-    int bitAccess = Era::GetMaskMsgBoxItId();
+    int bitAccess = GetMaskMsgBoxItId();
     dlg->GetItem(1525)->field_28 = bitAccess;   
 
     if (b_MsgBox_Style_id == 7 || b_MsgBox_Style_id == 10)
@@ -313,7 +316,7 @@ int __stdcall Y_New_MsgBox_SetDefaultFrameEnabled(LoHook* h, HookContext* c)
             return EXEC_DEFAULT;
 
         // получаем дефолтный активный элемент
-        int itemID = Era::GetDefaultMsgBoxItId(); 
+        int itemID = GetDefaultMsgBoxItId(); 
 
         if ( itemID >= 0 && itemID <= 7 )
         {
@@ -376,4 +379,16 @@ void Dlg_MsgBox(PatcherInstance* _PI)
     // увеличение высоты скролл текста
     if ( o_HD_Y >= 664)
         _PI->WriteDword(0x4F662F +1, o_HD_Y-440);
+
+
+
+    if (HINSTANCE hEra = LoadLibraryA("era.dll"))
+    {
+        GetDefaultMsgBoxItId = (TGetDefaultMsgBoxItId)GetProcAddress(hEra, "_GetPreselectedDialog8ItemId");
+        GetMaskMsgBoxItId = (TGetMaskMsgBoxItId)GetProcAddress(hEra, "_GetDialog8SelectablePicsMask");
+    }
+
+    
+
+
 }

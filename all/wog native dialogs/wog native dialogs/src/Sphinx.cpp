@@ -288,8 +288,8 @@ int New_Dlg_CustomReq(_Sphinx1_* Sphinx)
             if ( imageType >= dlgSphinx::IMAGE_TYPE_ERA )
             {
                 // грузим картинку через era.dll->LoadImageAsPcx16()
-                if ( imageType == dlgSphinx::IMAGE_TYPE_ERA )
-                    o_Pic[i] = (_Pcx16_*)Era::LoadImageAsPcx16(pPath, short_name, 0, 0, max_width_pic, 100, 3);
+                if (imageType == dlgSphinx::IMAGE_TYPE_ERA)
+                    o_Pic[i] = (_Pcx16_*)Era::LoadImageAsPcx16(pPath, short_name, 0, 0, max_width_pic, 100, Era::EImageResizeAlg::RESIZE_ALG_DOWNSCALE);
                 // *.pcx16
                 if ( imageType == dlgSphinx::IMAGE_TYPE_PCX16 )
                 {
@@ -736,7 +736,7 @@ int __cdecl Y_Dlg_CustomPic(HiHook* hook, int num, int startup)
             _Pcx16_* o_Pic;
 
             if ( imageType == dlgSphinx::IMAGE_TYPE_ERA )
-                o_Pic = (_Pcx16_*)Era::LoadImageAsPcx16(MyString1, MyString2, 0, 0, 750, 510, /* RESIZE_ALG_DOWNSCALE */ 3);
+                o_Pic = (_Pcx16_*)Era::LoadImageAsPcx16(MyString1, MyString2, 0, 0, 750, 510, /* RESIZE_ALG_DOWNSCALE */ Era::EImageResizeAlg::RESIZE_ALG_DOWNSCALE);
             // *.pcx16
             if ( imageType == dlgSphinx::IMAGE_TYPE_PCX16 )
             {

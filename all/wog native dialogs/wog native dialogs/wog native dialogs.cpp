@@ -226,7 +226,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             _PI = _P->CreateInstance((char*)wndText::PLUGIN_NAME); 
 
             // подтягиваем ERA
-            Era::ConnectEra();
+            Era::ConnectEra(hModule, wndText::PLUGIN_NAME);
             // и сразу получаем версию ERA
             ERA_VERSION = Era::GetVersionNum();
             Era::RegisterHandler(OnReportVersion, "OnReportVersion");
