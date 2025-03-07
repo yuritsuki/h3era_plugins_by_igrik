@@ -52,11 +52,12 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
         if (!bug_fixes_On)
         {
             bug_fixes_On = true;    
+            constexpr auto PLUGIN_NAME = "game bug fixes extended";
+            Era::ConnectEra(hModule, PLUGIN_NAME);
 
             _P = GetPatcher();
-            _PI = _P->CreateInstance("game bug fixes extended"); 
+            _PI = _P->CreateInstance((char*)PLUGIN_NAME);
 
-            Era::ConnectEra();
 
             if (Era::PluginExists("typhon"))
                 TIPHON = true;
