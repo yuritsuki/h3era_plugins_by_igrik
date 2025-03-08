@@ -101,11 +101,11 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);WINDOWS_IGNORE_PACKING_MISMATCH</PreprocessorDefinitions>
       <WarningLevel>Level3</WarningLevel>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <StructMemberAlignment>Default</StructMemberAlignment>
+      <StructMemberAlignment>1Byte</StructMemberAlignment>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader />
     </ClCompile>

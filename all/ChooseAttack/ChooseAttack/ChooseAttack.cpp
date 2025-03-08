@@ -581,7 +581,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
         _PI->WriteLoHook(0x445829, Y_BattleMgr_MakeAttack_isStackCanShoot);
 
         // нажатие на кнопку автоматической битвы
-        _PI->WriteLoHook(0x47478A, Y_ClickAutoBattleButton_A_id2004);
+        // disabled by daemon_n
+       // _PI->WriteLoHook(0x47478A, Y_ClickAutoBattleButton_A_id2004);
 
         // при установке активного стека (обновить кнопку)
         _PI->WriteLoHook(0x477D98, Y_BattleMgr_SetActiveStack);
