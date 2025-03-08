@@ -703,8 +703,6 @@ int __cdecl Y_Dlg_CustomPic(HiHook* hook, int num, int startup)
 
         WoG_SplitPath( CD->Pic[0], MyString1, MyString2 );
 
-        sprintf(MyString, "3) Y_Dlg_CustomPic(MyString2): %s (%s)", MyString2, MyString1);
-        b_MsgBox(MyString, 5);
 
         _int32_ imageType = GetImageType(MyString2);
 
