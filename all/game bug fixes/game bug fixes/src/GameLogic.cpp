@@ -348,6 +348,31 @@ _LHF_(Y_OnDeleteObjectOnMap)
   return EXEC_DEFAULT;
 }
 
+// © SadnessPower
+// Пожиратель душ ранее воскрешал стеки существ, уровень которых больше 4,
+// если их здоровье было меньше 50
+_LHF_(BattleStack_AtGettingResurrectionResistance)
+{
+    // если кастует стек
+    if (IntAt(c->ebp + 0x1C))
+    {
+        if (const auto activeStack = o_BattleMgr->activeStack)
+        {
+            // если кастует Пожиратель Душ
+            if (activeStack->creature_id == CID_SOUL_EATER_A || activeStack->creature_id == CID_SOUL_EATER_D)
+            {
+                if (reinterpret_cast<_BattleStack_*>(c->edi)->creature.level > 4)
+                {
+                    // ставим иммунитет к касту
+                    c->return_address = 0x05A8824;
+                    return NO_EXEC_DEFAULT;
+                }
+            }
+        }
+    }
+
+    return EXEC_DEFAULT;
+}
 
 // © daemon_n
 // фикс бага расчёта защиты с возвратом 0 (чаще всего при атаке медведями существ с низкой защитой)
@@ -360,8 +385,43 @@ _LHF_(WoG_BattleStack_GetDefenceAgainst)
     return EXEC_DEFAULT;
 
 }
+// © daemon_n
+// Ошибка WoG/ERM -- помещение банка существ не типа объекта 16 не инициализировала его как банк существ
+_LHF_(WoG_PlaceObject)
+{
+    const int objectType = IntAt(c->ebp +0x14);
 
+    int creatureBankType = -1;
+    switch (objectType)
+    {
+    case 24:
+        creatureBankType = 8;
+		break;
+	case 25:
+        creatureBankType = 10;
+		break;
+    case 84:
+		creatureBankType = 9;
+		break;
+	case 85:
+		creatureBankType = 7;
+		break;
+    default:
+        break;
+    }
+    // если это банк существ
+    if (creatureBankType != -1)
+    {
+        // помещаем подтип согласно типу
+        IntAt(c->ebp + 0x18) = creatureBankType;
+       // и прыгаем в тип 16
+        c->return_address = 0x07141B6;
+        return NO_EXEC_DEFAULT;
+    }
 
+    return EXEC_DEFAULT;
+
+}
 // ##############################################################################################################################
 // ##############################################################################################################################
 // ##############################################################################################################################
@@ -436,6 +496,11 @@ void GameLogic(PatcherInstance* _PI)
     // и нет нападающего отряда при расчёте, игра возвращала мусорное значение;
     _PI->WriteLoHook(0x075D42C, WoG_BattleStack_GetDefenceAgainst);
 
+    // © daemon_n
+    // Ошибка WoG/ERM -- помещение банка существ не типа объекта 16 не инициализировала его как банк существ
+    _PI->WriteLoHook(0x0713429, WoG_PlaceObject);
+
+    
 
     // убираем клонов из показа в диалоге результатов битвы
     _PI->WriteLoHook(0x4708FC, Y_Dlg_BattleResults_IgnoreClones);
@@ -456,6 +521,10 @@ void GameLogic(PatcherInstance* _PI)
     // фикс бага при получении хинта от Магических Святынь
     // ранее использовался массив с заклинаиями от артефактов 0x430 -> 0x3EA
     _PI->WriteWord(0x40D979 +3, 0x3EA);
+
+    // © SadnessPower
+    // Фикс Бага воскрешения командиром существ со здоровьем <=50, а не макс 5-го уровня
+    _PI->WriteLoHook(0x05A881C, BattleStack_AtGettingResurrectionResistance);
 
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////// Фиксы раздвоения героя //////////////////////////
