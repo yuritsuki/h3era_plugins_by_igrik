@@ -7,6 +7,7 @@ constexpr LPSTR HMS_DEF_NAME = "townhrtd.def";
 constexpr LPSTR HMS_PCX_NAME = "Townhrtr.pcx";
 constexpr LPSTR HMS_BUTTON_HINT = "wnd.dlg_town.hms_button.hint";
 constexpr LPSTR HMS_BUTTON_RMC = "wnd.dlg_town.hms_button.rmc";
+Patch *blockScreenUpdate = nullptr;
 int __stdcall Y_DlgTown_Proc(HiHook *hook, _TownMgr_ *tm, _EventMsg_ *msg)
 {
     if (msg->type == MT_MOUSEBUTTON && msg->subtype == MST_LBUTTONCLICK && msg->item_id == BUTTON_ID)
@@ -39,7 +40,6 @@ int __stdcall Y_DlgTown_Proc(HiHook *hook, _TownMgr_ *tm, _EventMsg_ *msg)
                 closeDlgbutton->Hide();
 
             o_TownMgr->mgr.isActive = false;
-            static auto blockScreenUpdate = _PI->CreateHexPatch(0x04AAC21, "90 90 90 90 90 90 90 90 90");
             blockScreenUpdate->Apply();
             hdv(_bool_, "HotA.SwapMgrCalledFromTown") = 1;
 
@@ -142,8 +142,9 @@ void __stdcall Y_Dlg_HeroesMeetCreate(HiHook *hook, const _WndMgr_ *wndMgr, _Dlg
 void Dlg_TownHeroesMeet(PatcherInstance *_PI)
 {
 
-    // обмен героями в замке ко клавише E
+    blockScreenUpdate = _PI->WriteHexPatch(0x04AAC21, "90 90 90 90 90 90 90 90 90");
 
+    // обмен героями в замке ко клавише E
     //  if (atoi(GetEraJSON("wnd.dlg_town.hms_button.enabled")))
     { // добавить кнопку в диалог города
         _PI->WriteLoHook(0x05C5C57, TownDlg_Create);
