@@ -427,7 +427,7 @@ _LHF_(WoG_PlaceObject)
 _LHF_(AdvMgr_EnterToUniversity)
 {
     const auto hero = *reinterpret_cast<_Hero_**>(c->ebp +0x8);
-    if (hero&& hero->owner_id >= 0 && hero->owner_id < 8)
+    if (hero && hero->owner_id >= 0 && hero->owner_id < 8)
     {
         CALL_2(void, __thiscall, 0x4FC620, c->edi, hero->owner_id);
     }
@@ -490,7 +490,7 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteLoHook(0x441BAA, Y_NPC_FixDoubleAttackOnMelle);
 
     // © daemon_n
-    // фикс ERM команды CB:M: при проверке/установке типа и количество существ значение ограничилось 196 (Драколич)
+    // фикс ERM команды CB:M: при проверке/установке типа и количество существ значение ограничивалось 196 (Драколич)
     const int MAX_MON_ID = IntAt(0x4A1657);
     _PI->WriteDword(0x073A847 + 3, MAX_MON_ID + 1); // увечиличить макс id при проверке на выход из границы
     _PI->WriteDword(0x073A850 + 3, MAX_MON_ID); // увеличить макс id при выходе за границы
