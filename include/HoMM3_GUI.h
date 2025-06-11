@@ -336,7 +336,9 @@ NOALIGN struct _Dlg_ : public _Struct_
  _dword_ field_68;
 
 //VIRTUAL/////////////////////////////////////////////////////////////////////////
- inline _Dlg_* Destroy(_bool_ delete_) {return CALL_2(_Dlg_*, __thiscall, this->v_table[0], this, delete_);}
+// уничтожаем виджеты, потому что оригинальный деструктор их не уничтожит @daemon_n
+ inline void DestroyItems() { return CALL_1(void, __thiscall, 0x05FFAD0, this); }
+ inline _Dlg_* Destroy(_bool_ delete_) {return DestroyItems(), CALL_2(_Dlg_*, __thiscall, this->v_table[0], this, delete_);}
  inline void  Show(_int_ z_order, _bool_ redraw_screen) {CALL_3(void, __thiscall, this->v_table[1], this, z_order, redraw_screen);}
  inline void  Hide(_bool_ redraw_screen) {CALL_2(void, __thiscall, this->v_table[2], this, redraw_screen);}
  inline void  Redraw(_bool_ redraw_screen, _dword_ item_id_start, _dword_ item_id_end) {CALL_4(void, __thiscall, this->v_table[5], this, redraw_screen, item_id_start, item_id_end);}
