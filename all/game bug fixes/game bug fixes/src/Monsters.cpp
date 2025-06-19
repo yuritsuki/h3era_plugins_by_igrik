@@ -390,6 +390,23 @@ _LHF_(gem_EnchantersTryToCastSelectSpell)
     c->edx += c->esi * sizeof(_BattleStack_);
     return EXEC_DEFAULT;
 }
+
+// © JackSlater
+// Фикс бага SoD - Сказочные драконы колдовали без звука
+_LHF_(js_BattleStack_InitAssets_BeforeInitShootingSound)
+{
+    if (const auto * stack = reinterpret_cast<_BattleStack_ *>(c->ebx))
+    {
+        if (stack->creature_id == CID_FAERIE_DRAGON)
+        {
+            c->return_address = 0x043D910;
+            return NO_EXEC_DEFAULT;
+        }
+
+    }
+    return EXEC_DEFAULT;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -483,6 +500,16 @@ void Monsters(PatcherInstance *_PI)
     _PI->WriteLoHook(0x0447D9C, gem_EnchantersFindTargetsForSpell);
     _PI->WriteLoHook(0x0447E4A, gem_EnchantersTryToCastSelectSpell);
 
+    // © JackSlater
+    // Фикс бага WoG - Драколичи не имели флаг сплеша для ИИ
+    o_CreatureInfo[CID_DRACOLICH].flags |= 0x100000; // !#DC(MON_FLAG_SPLASH_SHOOTER) = 1048576;
+
+    // © JackSlater
+    // Фикс бага SoD - Сказочные драконы колдовали без звука
+    _PI->WriteLoHook(0x043D8DE, js_BattleStack_InitAssets_BeforeInitShootingSound);
+
+
+    
     // патчи без Tiphon.dll
     if (!TIPHON)
     {

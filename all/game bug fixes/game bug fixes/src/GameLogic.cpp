@@ -433,6 +433,24 @@ _LHF_(AdvMgr_EnterToUniversity)
     }
     return EXEC_DEFAULT;
 }
+
+// © JackSlater
+// Фикс бага SoD - Невозможно колдовать более сильную версию заклинания "Полёт"
+// Если герой уже колдовал его на этот ход
+_LHF_(js_Cast_AdventureMagic_BeforeCheckFlyPower)
+{
+    if (const auto* hero = reinterpret_cast<_Hero_*>(c->esi))
+    {
+        // cast power is more than current fly power
+        const auto& spell = o_Spell[SPL_FLY];
+        if (spell.effect[c->edi] > spell.effect[hero->fly_cast_power])
+        {
+            c->return_address = 0x041C886;
+            return NO_EXEC_DEFAULT;
+        }
+    }
+    return EXEC_DEFAULT;
+}
 // ##############################################################################################################################
 // ##############################################################################################################################
 // ##############################################################################################################################
@@ -534,6 +552,17 @@ void GameLogic(PatcherInstance* _PI)
     // фикс бага при получении хинта от Магических Святынь
     // ранее использовался массив с заклинаиями от артефактов 0x430 -> 0x3EA
     _PI->WriteWord(0x40D979 +3, 0x3EA);
+
+
+    // © JackSlater
+    // Фикс бага SoD - Невозможно колдовать более сильную версию заклинания "Полёт"
+    // Если герой уже колдовал его на этот ход
+    _PI->WriteLoHook(0x041C879, js_Cast_AdventureMagic_BeforeCheckFlyPower);
+
+    // Фикс Уланда - герой имеет продвинутую мудрость на старте
+    o_HeroInfo[HID_ULAND].second_skill_1_lvl = 1;
+    // Фикс Димера - герой имеет продвинутую разведку на старте
+    o_HeroInfo[HID_DEEMER].second_skill_2_lvl = 1;
 
     // © SadnessPower
     // Фикс Бага воскрешения командиром существ со здоровьем <=50, а не макс 5-го уровня
