@@ -451,6 +451,18 @@ _LHF_(js_Cast_AdventureMagic_BeforeCheckFlyPower)
     }
     return EXEC_DEFAULT;
 }
+// © JackSlater
+// Фикс бага SoD - усилители заклинаний от героя не работали при касте существами
+_LHF_(js_BattleMgr_CastSpell_BeforeSwitchCase)
+{
+    // if monster casts spell and it affects enemy stack
+    if (IntAt(c->ebp + 0x10) == 1 && o_Spell[IntAt(c->ebp +0x8)].type == -1)
+    {
+        // set active hero from function return
+        *reinterpret_cast<_Hero_**>(c->ebp - 0x14) = CALL_1(_Hero_*, __thiscall, 0x04423B0, o_BattleMgr->GetCurrentStack());
+    }
+    return EXEC_DEFAULT;
+}
 // ##############################################################################################################################
 // ##############################################################################################################################
 // ##############################################################################################################################
@@ -558,6 +570,10 @@ void GameLogic(PatcherInstance* _PI)
     // Фикс бага SoD - Невозможно колдовать более сильную версию заклинания "Полёт"
     // Если герой уже колдовал его на этот ход
     _PI->WriteLoHook(0x041C879, js_Cast_AdventureMagic_BeforeCheckFlyPower);
+
+    // © JackSlater
+    // Фикс бага SoD - усилители заклинаний от героя не работали при касте существами
+    _PI->WriteLoHook(0x05A065D, js_BattleMgr_CastSpell_BeforeSwitchCase);
 
     // Фикс Уланда - герой имеет продвинутую мудрость на старте
     o_HeroInfo[HID_ULAND].second_skill_1_lvl = 1;
