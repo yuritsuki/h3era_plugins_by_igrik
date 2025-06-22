@@ -455,6 +455,6 @@ void Dlg_WoGOptions(PatcherInstance* _PI)
     _PI->WriteHiHook(0x587FD0, SPLICE_, EXTENDED_, THISCALL_, Y_NewScenarioDlg_Proc);
     _PI->WriteHiHook(0x57CB70, SPLICE_, EXTENDED_, THISCALL_, Y_NewScenarioDlg_BlockScrollBar);
     // диалог WoG Опций
-     _PI->WriteHiHook(0x779213, CALL_, EXTENDED_, THISCALL_, Dlg_WoG_Options_Show);
+     _PI->WriteHiHook(0x779213, CALL_, EXTENDED_, CDECL_, Dlg_WoG_Options_Show);
 
 }

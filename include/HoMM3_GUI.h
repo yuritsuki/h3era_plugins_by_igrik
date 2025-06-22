@@ -893,7 +893,7 @@ class _CustomDlg_ : public _Dlg_
 {
 public:
    _func_CustomDlgProc dlg_proc;
-   _dword_ custom_data[3];
+   _dword_ custom_data[10];
    static _ptr_ v_table_funcs[15];
    static int __fastcall DlgProcBridge(_CustomDlg_* this_, _dword_ not_used, _EventMsg_* msg);
 
