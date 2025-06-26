@@ -198,6 +198,7 @@ int __stdcall Y_Hook_MainLoop(LoHook* h, HookContext* c)
     json_Combat[0] = GetEraJSON("wnd.combat.finish_question");
     json_Combat[1] = GetEraJSON("wnd.combat.show_killed");
     Battle_ShowKilled(_PI);         // показ предполагаемого количества убитых монстров при атаке и стрельбе
+    Dlg_TownHeroesMeet(_PI);        // обмен героями в замке ко клавише E
 #endif DOP_FUNK_TO_ERA
 
     return EXEC_DEFAULT;
@@ -278,9 +279,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             Dlg_CastleReBuild(_PI); // диалог перестройки замка
             HD5_Functions(_PI);     // реализация функций, вырезанных в HD 5 версии
             DlgBattleLog(_PI);  // окно диалога статуса действий и событий в битве
-#ifdef DOP_FUNK_TO_ERA
-            Dlg_TownHeroesMeet(_PI);    // обмен героями в замке ко клавише E
-#endif DOP_FUNK_TO_ERA  
+
             // char* oVersionERA = "{Game Version:}\n\nHoMM3 ERA 2.7.7 \n (with Wog Native Dialogs)";
             // _PI->WriteDword(0x7066E1 +1, *(int*)&oVersionERA); // ENG
             // _PI->WriteDword(0x7066CE +1, *(int*)&oVersionERA); // RUS            

@@ -142,11 +142,12 @@ void __stdcall Y_Dlg_HeroesMeetCreate(HiHook *hook, const _WndMgr_ *wndMgr, _Dlg
 void Dlg_TownHeroesMeet(PatcherInstance *_PI)
 {
 
-    blockScreenUpdate = _PI->WriteHexPatch(0x04AAC21, "90 90 90 90 90 90 90 90 90");
-
     // обмен героями в замке ко клавише E
-    //  if (atoi(GetEraJSON("wnd.dlg_town.hms_button.enabled")))
-    { // добавить кнопку в диалог города
+    if (atoi(GetEraJSON("wnd.dlg_town.hms_button.enabled")))
+    {
+        blockScreenUpdate = _PI->WriteHexPatch(0x04AAC21, "90 90 90 90 90 90 90 90 90");
+
+        // добавить кнопку в диалог города
         _PI->WriteLoHook(0x05C5C57, TownDlg_Create);
 
         // основная процедура
