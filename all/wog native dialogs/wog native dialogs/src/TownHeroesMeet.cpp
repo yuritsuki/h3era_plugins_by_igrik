@@ -23,12 +23,12 @@ int __stdcall Y_DlgTown_Proc(HiHook *hook, _TownMgr_ *tm, _EventMsg_ *msg)
             _Hero_ *heroU = o_GameMgr->GetHero(heroU_id);
             _Hero_ *heroD = o_GameMgr->GetHero(heroD_id);
 
-            if (o_ExecMgr->next != &o_WndMgr->mgr)
-            {
-                o_TownMgr->mgr.SetManagers(&o_AdvMgr->mgr, &o_WndMgr->mgr);
-                o_AdvMgr->mgr.SetManagers(nullptr, &o_WndMgr->mgr);
-                o_WndMgr->mgr.SetManagers(&o_TownMgr->mgr, &o_MouseMgr->mgr);
-            }
+            auto mgr = o_ExecMgr->next;
+
+            o_TownMgr->mgr.SetManagers(&o_AdvMgr->mgr, &o_WndMgr->mgr);
+            o_AdvMgr->mgr.SetManagers(nullptr, &o_WndMgr->mgr);
+            o_WndMgr->mgr.SetManagers(&o_TownMgr->mgr, &o_MouseMgr->mgr);
+
             _DlgItem_ *switchButton = tm->dlg->GetItem(BUTTON_ID);
             _DlgItem_ *closeDlgbutton = tm->dlg->GetItem(ID_OK_10);
 
