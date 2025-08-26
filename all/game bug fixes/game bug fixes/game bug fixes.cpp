@@ -20,6 +20,8 @@ char* BATTLE_DLG_NAME = "battle_dlg.daemon.plugin";
 #include "src\Spells.cpp"
 #include "src\SammonCreatures.cpp"
 #include "src\GameLogic.cpp"
+#include "src\HeroMovementFixes.cpp"
+//#include "src\ScoutingRadiusFixes.cpp"
 #include "src\GamePatches.cpp"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,6 +38,8 @@ void HooksInit(Patcher* _P, PatcherInstance* _PI)
     WOG_SammonCreatures(_PI);
     GameLogic(_PI); 
     SetPathes(_PI);
+    //scouting::ScoutingRadiusFixes(_PI);
+    movement::HeroMovementFixes(_PI);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////

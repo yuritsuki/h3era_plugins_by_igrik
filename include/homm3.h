@@ -3757,6 +3757,9 @@ NOALIGN struct _Npc_
  inline char* GetText_FromZVar(int z_num) {return CALL_3(char*, __cdecl, 0x73DF05, 0x9271E8 + 512*z_num, 1, 0);}
  inline char* GetText_FromERT(int z_num)  {return CALL_1 (char*, __cdecl, 0x776620, z_num);}
  
+ // Функция проверки, носит ли командир артефакт
+ inline int Npc_HasArtifact(_Npc_* npc, _int_ art_id) { return CALL_2(int, __thiscall, 0x76E23D, npc, art_id); }
+
 // структура опыта стека
  #define o_CrExpo_ ((_CrExpo_*)0x860550)         
 // Структура опыта монстра 340

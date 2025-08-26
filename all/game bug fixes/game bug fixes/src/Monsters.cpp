@@ -395,14 +395,64 @@ _LHF_(gem_EnchantersTryToCastSelectSpell)
 // Фикс бага SoD - Сказочные драконы колдовали без звука
 _LHF_(js_BattleStack_InitAssets_BeforeInitShootingSound)
 {
-    if (const auto * stack = reinterpret_cast<_BattleStack_ *>(c->ebx))
+    if (const auto *stack = reinterpret_cast<_BattleStack_ *>(c->ebx))
     {
         if (stack->creature_id == CID_FAERIE_DRAGON)
         {
             c->return_address = 0x043D910;
             return NO_EXEC_DEFAULT;
         }
+    }
+    return EXEC_DEFAULT;
+}
 
+// @ Archer30
+// Fix messing up spell immunity checks for stack exp spells
+// WoG doesn't use the native way to check spell immunity for stack exp spells, this script fixes its behaviours.
+_LHF_(gem_OnCheckWoGSpellImmunity)
+{
+
+    const int spellId = IntAt(c->ebp + 0x18);
+    if (spellId != -1)
+    {
+        _BattleStack_ *currentStack = o_BattleMgr->GetCurrentStack();
+        _BattleStack_ *targetStack = *reinterpret_cast<_BattleStack_ **>(c->ebp + 0xC);
+
+        // store result
+        IntAt(c->ebp - 0x4) =
+            targetStack->CanUseSpell(spellId, currentStack->GetSide(), 1, 1); // check stack and caster type is monster
+        IntAt(c->ebp - 0x10) = 0;
+
+        c->return_address = 0x75C12C;
+        return NO_EXEC_DEFAULT;
+    }
+
+    return EXEC_DEFAULT;
+}
+// @ Archer30
+// Rebalance Hill Forts - the cost of upgrade is calculated based on the level of the upgraded monster instead of the
+// pre-upgraded monster
+_LHF_(gem_OnGetHillFortMonLevel)
+{
+    const int monToUpgrade = c->eax;
+    if (monToUpgrade > -1)
+    {
+        const int monUpgrade = GetCreatureUpradeWOG(monToUpgrade);
+        if (monUpgrade > -1)
+        {
+            c->eax = monUpgrade;
+        }
+    }
+    return EXEC_DEFAULT;
+}
+// @ daemon_n
+// Fix bug with cloning monsters when the monster limit is reached
+_LHF_(gem_AI_GetCloneCastValue)
+{
+    if (o_BattleMgr->countMonsters[o_BattleMgr->currentActiveSide] >= 20)
+    {
+        c->return_address = 0x43AFAC;
+        return NO_EXEC_DEFAULT;
     }
     return EXEC_DEFAULT;
 }
@@ -508,8 +558,27 @@ void Monsters(PatcherInstance *_PI)
     // Фикс бага SoD - Сказочные драконы колдовали без звука
     _PI->WriteLoHook(0x043D8DE, js_BattleStack_InitAssets_BeforeInitShootingSound);
 
+    // @ Archer30
+    // Fix messing up spell immunity checks for stack exp spells
+    // WoG doesn't use the native way to check spell immunity for stack exp spells, this script fixes its behaviours.
+    // Sorceress spell uses the same function, yet it seems to respect correct spell immunity, thus we igonre here.
+    // Discussion: http://wforum.heroes35.net/showthread.php?tid=4218&pid=139198#pid139198
+    _PI->WriteLoHook(0x75BA02, gem_OnCheckWoGSpellImmunity);
+    //
+    // @ Archer30
+    // Rebalance Hill Forts - the cost of upgrade is calculated based on the level of the upgraded monster instead of
+    // the pre-upgraded monster ; This is considered a bug fix as in the original H3, every upgrade has the same
+    // creature level before and after
+    // In WoG with Extended Upgrade option, it's possible to upgrade Gremlins (level 1) to Santa Gremlins (leve 3)
+    //    for free (since the fee is calculated based on Gremlins)
+    // This script fixes this so that such upgrade would costs a little amount of fee(but still with discount as
+    //     Hill Forts always do to low level creatures)
+    _PI->WriteLoHook(0x4E800F, gem_OnGetHillFortMonLevel);
 
-    
+    // @ daemon_n
+    // Fix bug with cloning monsters when the monster limit is reached
+    _PI->WriteLoHook(0x43AF42, gem_AI_GetCloneCastValue);
+
     // патчи без Tiphon.dll
     if (!TIPHON)
     {

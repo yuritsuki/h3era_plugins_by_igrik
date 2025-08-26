@@ -1090,3 +1090,9 @@ static int calls_count = 0;
 // * e.g. _LHF_(MyFunction) {}
 #define _LHF_(func) int __stdcall func(LoHook *h, HookContext *c)
 #endif
+#ifndef _ERH_
+// * predefined macro for LoHook functions
+// * LoHook *h and HookContext *c are pre-defined
+// * e.g. _LHF_(MyFunction) {}
+#define _ERH_(func) void __stdcall func(Era::TEvent* evnt)
+#endif

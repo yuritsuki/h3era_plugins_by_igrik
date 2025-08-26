@@ -504,6 +504,15 @@ void GameLogic(PatcherInstance* _PI)
     // - если стоит опция "не показывать передвижения противника"
     _PI->WriteByte(0x41DBE8 +1, 0x5C);
 
+    // [центрируем текст названия города по вертикали в окне города(id 149)]
+    _PI->WriteByte(0x5C5C1B, 4);
+    
+    // радус открытия всей карты
+    _PI->WriteDword(0x4F4B57, 320); // [чит - меню(ориг = 180)]
+    _PI->WriteDword(0x4026FA, 360); // [чит wogeyeofsauron(ориг = 200)]
+     // радус закрытия всей карты
+    _PI->WriteDword(0x402751, 360); //[чит wogeyeofsauron(ориг = 200)]
+
     // © daemon_n
     // при доступе к рынку в окне союзника без своих собственных (возможно через торговца артефактов)
     // курс делится на 0, что приводит к крашу при клику на ресурсах и артефактах
@@ -574,6 +583,10 @@ void GameLogic(PatcherInstance* _PI)
     // © JackSlater
     // Фикс бага SoD - усилители заклинаний от героя не работали при касте существами
     _PI->WriteLoHook(0x05A065D, js_BattleMgr_CastSpell_BeforeSwitchCase);
+
+    // © JackSlater
+    // Исправляем баг SoD: сброс посещённости сирен после боя.
+    _PI->WriteCodePatch(0x4DA8FC, "%n", 24); // 24 nop
 
     // Фикс Уланда - герой имеет продвинутую мудрость на старте
     o_HeroInfo[HID_ULAND].second_skill_1_lvl = 1;
