@@ -339,7 +339,7 @@ _LHF_(Y_OnDeleteObjectOnMap)
 
   if (currentMapItem && deletingMapItem)
   {
-    if (currentMapItem->GetReal__object_type() != deletingMapItem->GetReal__object_type())
+    if (currentMapItem->object_type!= 62 && currentMapItem->GetReal__object_type() != deletingMapItem->GetReal__object_type())
     {
       c->return_address = 0x4AA984;
       return NO_EXEC_DEFAULT;
@@ -503,7 +503,7 @@ void GameLogic(PatcherInstance* _PI)
     // - если мы не видим территорию
     // - если стоит опция "не показывать передвижения противника"
     _PI->WriteByte(0x41DBE8 +1, 0x5C);
-
+    
     // [центрируем текст названия города по вертикали в окне города(id 149)]
     _PI->WriteByte(0x5C5C1B, 4);
     

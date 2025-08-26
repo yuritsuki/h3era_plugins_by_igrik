@@ -205,6 +205,30 @@ int __stdcall Y_FixClone(LoHook* h, HookContext* c)
     return NO_EXEC_DEFAULT;
 }
 
+// @ Archer30
+// Here we just recreate the summoning behaviour with the Summon Elemental way to avoid the wrong position to summon
+_LHF_(gem_OnDragonHeartSummonDragons)
+{
+    const int monSide = IntAt(c->ebp - 0x18);
+    const int monType = IntAt(c->ebp - 0x1C);
+    const int monNum = IntAt(c->ebp - 0xC);
+    const int storedSummonedMon = o_BattleMgr->summonedElemental[monSide];
+    const int storedActiveSide = o_BattleMgr->currentActiveSide;
+    const int storedSpellEffect = o_Spell[SPL_EARTH_ELEMENTAL].effect[0];
+    o_BattleMgr->currentActiveSide = monSide;
+    o_Spell[SPL_EARTH_ELEMENTAL].effect[0] = 1;
+
+    CALL_5(void, __thiscall, 0x5A7390, o_BattleMgr, SPL_EARTH_ELEMENTAL, monType, monNum, 0);
+
+    o_Spell[SPL_EARTH_ELEMENTAL].effect[0] = storedSpellEffect;
+
+    o_BattleMgr->summonedElemental[monSide] = storedSummonedMon;
+    o_BattleMgr->currentActiveSide = storedActiveSide;
+    // обходим все расчёты ВОГа
+    c->return_address =0x767B77;
+    return NO_EXEC_DEFAULT;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -214,4 +238,11 @@ void WOG_SammonCreatures(PatcherInstance* _PI)
     _PI->WriteLoHook(0x5A7095, Y_FixClone_SOD_CreatureDoubleWide);
     // фикс вызова клонов ВОГом от опыта монстров
     _PI->WriteLoHook(0x71E031, Y_FixClone);
+
+    // @ Archer30
+    // Here we just recreate the summoning behaviour with the Summon Elemental way to avoid the wrong position to summon
+    // Discussion: http://wforum.heroes35.net/showthread.php?tid=4218&pid=138936#pid138936
+    _PI->WriteLoHook(0x7679F5, gem_OnDragonHeartSummonDragons);
+
+
 }
