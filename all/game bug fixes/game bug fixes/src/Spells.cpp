@@ -133,6 +133,19 @@ int __stdcall Y_ArtGive_AllSpells(HiHook* hook, int spells_array, char enable)
     return CALL_2(int, __thiscall, hook->GetDefaultFunc(), spells_array, enable);
 }
 
+// Наличие яда теперь не даёт колдовать Снятие Заклинаний.
+int __stdcall LoHook_RestrictDispel_Poison(LoHook* h, HookContext* c)
+{
+    // Яд - пропускаем проверку на него.
+    if (c->eax == SPL_POISON)
+    {
+        return NO_EXEC_DEFAULT;
+    }
+    else
+    {
+        return EXEC_DEFAULT;
+    }
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,6 +168,10 @@ void Spells(PatcherInstance* _PI)
 
     // фикс неправильного отображения величины урона в окне статуса битвы при касте заклинания Армагеддон
     _PI->WriteHiHook(0x5A5522, CALL_, EXTENDED_, THISCALL_, Y_Fix_ReportStatusMsg_CastArmageddonSpell);
+
+    // Наличие яда теперь не даёт колдовать Снятие Заклинаний.
+    _PI->WriteLoHook(0x5A84BD, LoHook_RestrictDispel_Poison);
+
 
     // патчи без Tiphon.dll
     if (!TIPHON)

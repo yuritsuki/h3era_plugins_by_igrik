@@ -553,7 +553,9 @@ void Monsters(PatcherInstance *_PI)
     // © JackSlater
     // Фикс бага WoG - Драколичи не имели флаг сплеша для ИИ
     o_CreatureInfo[CID_DRACOLICH].flags |= 0x100000; // !#DC(MON_FLAG_SPLASH_SHOOTER) = 1048576;
-
+    // Исправляем баг SoD: ИИ считал, что облако личей не задевает только нежить.
+    _PI->WriteByte(0x41EFA6 + 2, 4);
+    _PI->WriteHexPatch(0x41EFAC, "75 16"); // jnz 0x41EFC4
     // © JackSlater
     // Фикс бага SoD - Сказочные драконы колдовали без звука
     _PI->WriteLoHook(0x043D8DE, js_BattleStack_InitAssets_BeforeInitShootingSound);

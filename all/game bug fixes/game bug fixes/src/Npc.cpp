@@ -134,7 +134,7 @@ _ERH_(OnAfterBattleUniversal)
 _LHF_(NPC_InitInCombat)
 {
     _Npc_ *npc = reinterpret_cast<_Npc_ *>(c->ecx);
-    if (npc && Npc_HasArtifact(npc, 155))
+    if (npc && npc->HasArtifact(155))
     {
         _CreatureInfo_ *creatureInfo = *reinterpret_cast<_CreatureInfo_ **>(c->ebp + 0xC);
         if (creatureInfo->spells_count < 2)
@@ -149,9 +149,8 @@ _LHF_(NPC_CalculatePrimarySkills)
 {
 
     _Npc_ *npc = reinterpret_cast<_Npc_ *>(c->ecx);
-    if (npc && IntAt(&npc->lvl_attack + c->eax) < 2 && Npc_HasArtifact(npc, 155))
+    if (npc && npc->secondary_skills[c->eax] < 2 && npc->HasArtifact(155))
     {
-
         c->return_address = 0x769556; //[jumping directly to the calculation of bonuses from the ring, bypassing the
                                       // addition of standard bonuses]
         return NO_EXEC_DEFAULT;
@@ -174,6 +173,45 @@ _LHF_(WoG_CombatStart_SummonNPC)
     }
     return EXEC_DEFAULT;
 }
+// @daemon_n
+// фикс: сообщение о посещении кристалов командиров показываются до их удаления с карты
+int wogObjectType = 0;
+int wogIsHuman = 0;
+_LHF_(WoG_BeforMapItemVisit)
+{
+    wogObjectType = IntAt(c->ebp - 0x14);
+    wogIsHuman = IntAt(c->ebp - 0x4);
+    return EXEC_DEFAULT;
+}
+void __stdcall AdvMgr_Chest_Visit(HiHook *h, _AdvMgr_ *AvdManager, _Hero_ *Hero, _MapItem_ *mapItem, int PosMixed,
+                                  char isHuman)
+{
+
+    if (wogObjectType >= 17 && wogObjectType <= ByteAt(0x0706053 + 3))
+    {
+        CALL_3(void, __cdecl, 0x07708DE, Hero, wogObjectType - 17, wogIsHuman);
+        wogObjectType = 0;
+    }
+
+    CALL_5(void, __thiscall, h->GetDefaultFunc(), AvdManager, Hero, mapItem, PosMixed, isHuman);
+}
+//void __stdcall AdvMgr_Resource_Visit(HiHook *h, _Hero_ *Hero, int resType, int resCount)
+//{
+//    if (wogObjectType == 30)
+//    {
+//        struct PlayersMithril
+//        {
+//            int mithril[8];
+//        };
+//        if (Hero->owner_id >= 0 && Hero->owner_id <= 7)
+//        {
+//           // reinterpret_cast<PlayersMithril *>(0x27F9A00)->mithril[Hero->owner_id] += resCount;
+//            //   CALL_3(void, __cdecl, 0x07708DE, Hero, resType, resCount);
+//            wogObjectType = 0;
+//        }
+//    }
+//    CALL_3(void, __thiscall, h->GetDefaultFunc(), Hero, resType, resCount);
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,4 +270,24 @@ void Npc(PatcherInstance *_PI)
     // фикс WoG бага, когда командиры призывают боевые машины в банках существ
     _PI->WriteLoHook(0x76B889, WoG_CombatStart_SummonNPC); // tent
     _PI->WriteLoHook(0x76B97B, WoG_CombatStart_SummonNPC); // ballista
+
+    // @daemon_n
+    // фикс: сообщение о посещении кристалов командиров показываются до их удаления с карты
+    _PI->WriteLoHook(0x0705FDD, WoG_BeforMapItemVisit);
+    _PI->WriteHiHook(0x04A9F93, CALL_, EXTENDED_, THISCALL_, AdvMgr_Chest_Visit);
+    // пропуск оригинальной механики
+    _PI->WriteJmp(0x0706059, 0x0706070);
+
+
+    //
+    //   // увеличение количества кристаллов до 6;
+    //   // ResetNpc
+    //   _PI->WriteByte(0x0770BD6 + 3, 13);
+    //   _PI->WriteByte(0x0770C17 + 3, 13);
+
+    //   // WoG visit MapItem
+    //    _PI->WriteByte(0x0705BDB + 2, 12);
+    //    // WoG visit Gem
+    //   _PI->WriteByte(0x0706053 + 3, 22);
+    //   _PI->WriteLoHook(0x0770967, Hero_PickupNPCGem);
 }

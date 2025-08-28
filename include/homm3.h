@@ -533,6 +533,11 @@ NOALIGN struct _HStringF_
  _byte_ dummy_f1[3];
  _HString_ h_str;
  _int_ size;
+ // Очистка строки.
+ inline void Clear(_bool8_ not_init)
+ {
+     CALL_2(void, __thiscall, 0x404130, this, not_init);
+ }
 };
 NOALIGN struct _GlobalEvent_
 {
@@ -2796,11 +2801,11 @@ NOALIGN struct _GameMgr_: _Struct_
   return (townId >= 0 ) ? &o_GameMgr->towns[townId] : NULL;
  }
 
- inline _Hero_*  GetHero(_int_ hero_id) {
-    if (hero_id < 0 || hero_id >= o_HEROES_COUNT) return 0;
-    return ((_Hero_ *)(((_ptr_)this) + GAME_HEROES_OFFSET /*0x21620*/ + 1170 * hero_id)); 
-}
-
+ inline _Hero_*  GetHero(_int_ hero_id) {  return CALL_2(_Hero_*,__thiscall, 0x04317D0,this,hero_id); }
+//  inline _Hero_*  GetHero(_int_ hero_id) {
+//    if (hero_id < 0 || hero_id >= o_HEROES_COUNT) return 0;
+//    return ((_Hero_ *)(((_ptr_)this) + GAME_HEROES_OFFSET /*0x21620*/ + 1170 * hero_id)); 
+//}
  // inline char*  GetHeroName() {return *(char**)((_ptr_)this +  0x1F86C + 0x2D4);}
  inline _Player_* GetPlayer(_int_ player_id) {return ((_Player_ *)(((_ptr_)this) + 0x20AD0 + 360 * player_id));}
  inline _Town_*  GetTown(_int_ town_id) {return ((_Town_*)(*(_ptr_*)(((_ptr_)this) + 0x21614) + 360 * town_id));}
@@ -3716,21 +3721,33 @@ NOALIGN struct _Npc_
  _int_ LastExpaInBattle; // 0x14     +20   Опыт в прошлых битвах
  _dword_ CustomPrimary;  // 0x18     +24   Если установить 1 (вкл), первичные навыки не будут изменяться с продвижением командира по уровням
                          //                Если установить 0, то здоровье и урон  будут автоматически прибавляться вместе с уровнем командира (из ERM Help = CO:P)
- _int_ attack;           // 0x1C     +28   Атака
- _int_ defence;          // 0x20     +32   Защита
- _int_ hit_points;       // 0x24     +36   Здоровье
- _int_ damage;           // 0x28     +40   Урон
- _int_ spell_power;      // 0x2C     +44   Сила_магии
- _int_ speed;            // 0x30     +48   Скорость
- _int_ resistance;       // 0x34     +52   Сопротивление
+ union  {
+  _int_ primary_skills[7]; // 0x1C     +28   Первичные_навыки (Атака, Защита, Здоровье, Урон, Сила_магии, Скорость, Сопротивление)
+  struct
+  {
+   _int_ attack;         // 0x1C     +28   Атака
+   _int_ defence;        // 0x20     +32   Защита
+   _int_ hit_points;     // 0x24     +36   Здоровье
+   _int_ damage;         // 0x28     +40   Урон
+   _int_ spell_power;    // 0x2C     +44   Сила_магии
+   _int_ speed;          // 0x30     +48   Скорость
+   _int_ resistance;     // 0x34     +52   Сопротивление
+  };
+ };
 
- _int_ lvl_attack;       // 0x38     +56   Уровень_Атаки
- _int_ lvl_defence;      // 0x3C     +60   Уровень_Защиты
- _int_ lvl_hit_points;   // 0x40     +64   Уровень_Здоровья
- _int_ lvl_damage;       // 0x44     +68   Уровень_Урона
- _int_ lvl_spell_power;  // 0x48     +72   Уровень_Сила_магии
- _int_ lvl_speed;        // 0x4C     +76   Уровень_Скорости
- _int_ lvl_resistance;   // 0x50     +80   Уровень_Сопротивления
+ union {
+     _int_ secondary_skills[7];
+     struct {
+         _int_ lvl_attack;       // 0x38     +56   Уровень_Атаки
+         _int_ lvl_defence;      // 0x3C     +60   Уровень_Защиты
+         _int_ lvl_hit_points;   // 0x40     +64   Уровень_Здоровья
+         _int_ lvl_damage;       // 0x44     +68   Уровень_Урона
+         _int_ lvl_spell_power;  // 0x48     +72   Уровень_Сила_магии
+         _int_ lvl_speed;        // 0x4C     +76   Уровень_Скорости
+         _int_ lvl_resistance;   // 0x50     +80   Уровень_Сопротивления
+     };
+ };
+
 
  _word_ arts[10][8];     // 0x54     +84   Номер_артефакта; Кол-во проведённых с ним битв
  _char_ name[32];        // 0xF4     +244  Имя
@@ -3738,6 +3755,9 @@ NOALIGN struct _Npc_
  _int_ now_expa;         // 0x118    +280  Текущий_опыт
  _int_ now_level;        // 0x11C    +284  Текущий_уровень (при отображении добавляем +1)
  _dword_ specBon[2];     // 0x120    +288  Особые_бонусы(сумма_битов); Запрещенные_бонусы(сумма_битов)
+
+ // Функция проверки, носит ли командир артефакт
+ inline int HasArtifact(_int_ art_id) { return CALL_2(int, __thiscall, 0x76E23D, this, art_id); }
 };
 
 // функция получения адреса структуры командира
@@ -3757,8 +3777,7 @@ NOALIGN struct _Npc_
  inline char* GetText_FromZVar(int z_num) {return CALL_3(char*, __cdecl, 0x73DF05, 0x9271E8 + 512*z_num, 1, 0);}
  inline char* GetText_FromERT(int z_num)  {return CALL_1 (char*, __cdecl, 0x776620, z_num);}
  
- // Функция проверки, носит ли командир артефакт
- inline int Npc_HasArtifact(_Npc_* npc, _int_ art_id) { return CALL_2(int, __thiscall, 0x76E23D, npc, art_id); }
+
 
 // структура опыта стека
  #define o_CrExpo_ ((_CrExpo_*)0x860550)         
