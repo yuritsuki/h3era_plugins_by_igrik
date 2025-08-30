@@ -116,9 +116,9 @@ int PrepareRemovedArmyMessage(const int side, char* const buffer)
     // Формируем сообщение об уменьшении армии
    
 
+    bool isRemoved = false;
 
    removedArmy = *reinterpret_cast<RemovedArmy**>(0x076C9FE +1);
-   bool isRemoved = false;
    std::string creatureNames;
 
 //   str.append(text);
@@ -206,7 +206,7 @@ void DlgBattleLog(PatcherInstance* _PI)
 	// блокируем оригинальную функцию для атакующего
     _PI->WriteJmp(0x076D03B, 0x076D0C9);
     // блокируем оригинальную функцию для защитника
-    _PI->WriteJmp(0x076D2CD, 0x076D35B);
+    _PI->WriteJmp(0x076D2CD, 0x076D313);
 	// блокируем оригинальную функцию показа сообщения о возврте армии герою;
 	_PI->WriteJmp(0x076C695, 0x076C6DB);
 }
