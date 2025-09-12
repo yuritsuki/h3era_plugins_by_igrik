@@ -430,7 +430,45 @@ NOALIGN struct _CreatureInfo_
  _int_ level;
  _char_* sound_name;
  _char_* def_name;
- _int_ flags;
+ union {
+     struct
+     {
+         unsigned doubleWide : 1;     // 1
+         unsigned flyer : 1;          // 2
+         unsigned shooter : 1;        // 4
+         unsigned extendedAttack : 1; // 8 ~ aka dragon breath
+         unsigned alive : 1;          // 10
+         unsigned destroyWalls : 1;   // 20
+         unsigned siegeWeapon : 1;    // 40
+         unsigned king1 : 1; // 80 ~ all creatures of 7th level and neutral dragons that do not belong to the KING2 or KING3
+         unsigned king2 : 1;        // 100
+         unsigned king3 : 1;        // 200
+         unsigned mindImmunity : 1; // 400
+         unsigned shootsRay : 1; // 800 WoG incorrectly refers to this as 'no obstacle penalty' instead it's a flag used
+         // to draw a straight line when shooting - see 0x43F23D
+         unsigned noMeleePenalty : 1;  // 1000
+         unsigned unk2000 : 1;         // 2000
+         unsigned fireImmunity : 1;    // 4000
+         unsigned doubleAttack : 1;    // 8000
+         unsigned noRetaliation : 1;   // 10000
+         unsigned noMorale : 1;        // 20000
+         unsigned undead : 1;          // 40000
+         unsigned attackAllAround : 1; // 80000
+         unsigned fireballAttack : 1;  // 100000
+         unsigned cannotMove : 1;      // 200000 ~21
+         unsigned summon : 1;          // 400000
+         unsigned clone : 1;           // 800000
+         unsigned morale : 1;          // 1000000
+         unsigned waiting : 1;         // 2000000 ~25
+         unsigned done : 1;            // 4000000
+         unsigned defending : 1;       // 8000000
+         unsigned sacrificed : 1;      // 10000000
+         unsigned noColoring : 1;      // 20000000
+         unsigned gray : 1;            // 40000000
+         unsigned dragon : 1;          // 80000000
+     };
+     _dword_ flags;
+ };
  _char_* name_single;
  _char_* name_plural;
  _char_* specification_description;
