@@ -114,16 +114,17 @@ double __stdcall HiHook_004438B0(HiHook *h, _BattleStack_ *attacker, _BattleStac
 _bool_ HasHourglass;
 
 // Перед получением списка модификаторов удачи определяем наличие песочных часов недброго часа.
-_HStringF_ *__stdcall HiHook_Get_CreatureLuckMod_List(HiHook *h, _HStringF_ *out_str, _int32_ creature_id,
-                                                      _int32_ luck_level, _Hero_ *hero, _Town_ *town,
-                                                      _Hero_ *enemy_hero, _Army_ *enemy_army, _int32_ subterr_id)
+_HStringF_ *__stdcall HiHook_Get_CreatureLuckMod_List(HiHook *h, _Army_ *own_army, _HStringF_ *out_str,
+                                                      _int32_ creature_id, _int32_ luck_level, _Hero_ *hero,
+                                                      _Town_ *town, _Hero_ *enemy_hero, _Army_ *enemy_army,
+                                                      _int32_ subterr_id)
 {
     // Определяем, есть ли песочные часы недоброго часа.
     HasHourglass = ((hero && hero->DoesWearArtifact(AID_HOURGLASS_OF_THE_EVIL_HOUR)) ||
                     (enemy_hero && enemy_hero->DoesWearArtifact(AID_HOURGLASS_OF_THE_EVIL_HOUR)));
 
     // Вызываем функцию.
-    return CALL_8(_HStringF_ *, __stdcall, h->GetDefaultFunc(), out_str, creature_id, luck_level, hero, town,
+    return CALL_9(_HStringF_ *, __thiscall, h->GetDefaultFunc(), own_army, out_str, creature_id, luck_level, hero, town,
                   enemy_hero, enemy_army, subterr_id);
 }
 // Учитываем песочные часы недоброго часа как модификатор удачи существа в списке модификаторов.
@@ -212,7 +213,7 @@ void LuckFixes(PatcherInstance *_PI)
     _PI->WriteLoHook(0x44151D, LoHook_0044151D);
 
     // Нопим обнуление удачи атакующего
-    _PI->WriteCodePatch(0x441792, (char *)"%n", 7);
+    _PI->WriteCodePatch(0x441792, "%n", 7);
 
     // _BattleStack_::Shoot (0043F620)
 
@@ -223,25 +224,25 @@ void LuckFixes(PatcherInstance *_PI)
     _PI->WriteLoHook(0x43F63B, LoHook_0043F63B);
 
     // Выстрел магога - нопим обнуление удачи стрелка
-    _PI->WriteCodePatch(0x43F963, (char *)"%n", 7);
+    _PI->WriteCodePatch(0x43F963, "%n", 7);
 
     // Обычный выстрел - нопим обнуление удачи стрелка
-    _PI->WriteCodePatch(0x43FA66, (char *)"%n", 7);
+    _PI->WriteCodePatch(0x43FA66, "%n", 7);
 
     // Выстрел лича - нопим обнуление удачи стрелка
-    _PI->WriteCodePatch(0x43FD45, (char *)"%n", 7);
+    _PI->WriteCodePatch(0x43FD45, "%n", 7);
 
     // _BattleStack_::DoMeleeAtack (004419D0)
 
     // _BattleStack_::AoeMeleeAtack (00440030)
 
     // Затираем атакующему стеку isLucky = 0 - удача/неудача при AoE атаке работает на все цели
-    _PI->WriteCodePatch(0x4400E7, (char *)"%n", 7);
+    _PI->WriteCodePatch(0x4400E7, "%n", 7);
 
     // _BattleStack_::CalcDamageBonuses (00443040)
 
     // Нопим + базовый урон, если стек isLucky
-    _PI->WriteCodePatch(0x4430A3, (char *)"%n", 18);
+    _PI->WriteCodePatch(0x4430A3, "%n", 18);
 
     // _BattleStack_::ApplyDamageModifiers (00443C60)
 
@@ -287,13 +288,18 @@ void LuckFixes(PatcherInstance *_PI)
     _PI->WriteByte(0x44C004 + 2, 20);
 
     // Перед получением списка модификаторов удачи определяем наличие песочных часов недброго часа.
-    _PI->WriteHiHook(0x44BE90, SPLICE_, EXTENDED_, STDCALL_, HiHook_Get_CreatureLuckMod_List);
+    _PI->WriteHiHook(0x44BE90, SPLICE_, EXTENDED_, THISCALL_, HiHook_Get_CreatureLuckMod_List);
 
     // Учитываем песочные часы недоброго часа как модификатор удачи существа в списке модификаторов.
     _PI->WriteLoHook(0x44C18A, LoHook_CreatureLuckModifsList_Hourglass);
 
     //// Корректное описание модификатора удачи хоббитов.
     //_PI->WriteDword(0x44C156 + 1, misk_text[2]);
+
+    // Недостающие фиксы удачи
+    _PI->WriteByte(0x4382b0, 0x1);
+    _PI->WriteCodePatch(0x4383e2, "%n", 3);
+    _PI->WriteByte(0x5f4309, 0x0);
 
     // ИИ
     // Правка ценности ИИ неудачи (увеличиваем в 2 раза).

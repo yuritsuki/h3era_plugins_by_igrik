@@ -28,18 +28,7 @@ int __stdcall Y_SetCanselScholarlySS(LoHook* h, HookContext* c)
     return NO_EXEC_DEFAULT;
 }
 
-// © Raistlin
-// Исправляем косяк, из-за которого ИИ не мог использовать торговцев артефактами в Сопряжении
-int __stdcall R_FixAI_ConfluxNerchant(LoHook* h, HookContext* c)
-{
-    if ((c->eax & 0xFF) == TOWN_CONFLUX) // al
-    {
-        *(int*)(c->ebp - 36) = c->ecx;
-        c->return_address = 0x525EE0;
-        return NO_EXEC_DEFAULT;
-    }
-    return EXEC_DEFAULT;
-}
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,18 +52,7 @@ void __cdecl Y_WoG_UnMixedPos_Fix(HiHook* hook, _dword_ x, _dword_ y, _dword_ z,
     return;
 }
 
-// фикс вылета: АИ битва (просчёт)
-// проверка на скорость монстра и когда он дойдет до защиты стрелка.
-// Убираем из проверки существ с нулевой скоростью и боевые машины
-_int_ __stdcall Y_AIMgr_Stack_MinRoundToReachHex(HiHook* hook, _dword_ this_, _BattleStack_* stack, _int_ a3)
-{
-    if (stack->creature.flags == BCF_CANT_MOVE || stack->creature.speed < 1)
-    {
-        return 99; // 99 раундов необходимо, чтобы добраться до стрелка
-    }
 
-    return CALL_3(_int_, __thiscall, hook->GetDefaultFunc(), this_, stack, a3);
-}
 
 // фикс вылета: нет проверки на наличие стуктуры целевого стека
 // но тут не хватает проверки на c->edi
@@ -286,6 +264,21 @@ _LHF_(Y_Fix_HeroesOnWaterCheckInteract)
 
   c->return_address = 0x4814DD;
   return NO_EXEC_DEFAULT;
+}
+
+// Исправление копейщиков в лагерях беженцев (только для клетки с триггером).
+_LHF_(LoHook_FixRefugeeCamp_dx)
+{
+    // Клетка.
+    _MapItem_* item = reinterpret_cast<_MapItem_*>(c->edi);
+
+    // Если это загрузка карты или не лагерь беженцев - устанавливаем подтип.
+    if (ByteAt(c->ebp + 0xC) || item->object_type != 78)
+    {
+        item->os_type = LOWORD(c->edx);
+    }
+
+    return EXEC_DEFAULT;
 }
 
 // решение вылета в городе после битвы, когда её инициируют в городе (например ERM или очарование Суккубов)
@@ -710,9 +703,7 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteDword(0x678344 + 11*4, 0x3dcccccd); // float 0.1
     _PI->WriteDword(0x678344 + 22*4, 0x3dcccccd); // float 0.1
 
-    // © Raistlin
-    // Исправляем косяк, из-за которого ИИ не мог использовать торговцев артефактами в Сопряжении
-    _PI->WriteLoHook(0x525ED1, R_FixAI_ConfluxNerchant);
+
 
     // фикс WoG'a
     // командиры, имеющие флаг стрельбы и двойной атаки, в рукопашной бъют один раз. Исправим это, ибо они уникальны
@@ -793,6 +784,8 @@ void GameLogic(PatcherInstance* _PI)
     // Прыжок через ProcessMessagesForTime, если скрытая битва
     _PI->WriteLoHook(0x441B25, LoHook_00441B25);
     _PI->WriteLoHook(0x441BD6, LoHook_00441BD6); // return address ->0x441BF5
+
+
     // Оковы войны действуют только в битве двух героев (ИИ).
     _PI->WriteLoHook(0x41E74A, LoHook_ShacklesRest_AI);
     // Оковы войны действуют только в битве двух героев (побег).
@@ -828,19 +821,23 @@ void GameLogic(PatcherInstance* _PI)
 
 	// @ daemon_n
     // фикс: посещение мифрила обновляет экран
-	_PI->WriteCodePatch(0x07060AC, (char*)"%n", 7); // удалить добавление мифрила костылём
+	_PI->WriteCodePatch(0x07060AC, "%n", 7); // удалить добавление мифрила костылём
 	_PI->WriteJmp(0x0705F42, 0x0705F7D); // пропустить изменение объекта на карте на костыльное решение
+
+    // Исправление копейщиков в лагерях беженцев (только для клетки с триггером).
+    _PI->WriteCodePatch(0x505E15,"%n", 4);
+    _PI->WriteLoHook(0x505E15, LoHook_FixRefugeeCamp_dx);
+
+    // Теперь в городах игрока при наличии форта всегда будет отстроено 2 уровня существ.
+    _PI->WriteCodePatch(0x5C1051, "%n", 20); // 20 nop
+    // Убираем случайность количества стеков в начальной армии.
+    _PI->WriteCodePatch(0x4C948F, "%n", 5); // 5 nop
+    _PI->WriteCodePatch(0x4C9497, "%n", 10); // 10 nop
+    _PI->WriteCodePatch(0x4C950F, "%n", 20); // 20 nop
+
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////// Фиксы крит.крашей игры //////////////////////////
 
-    // AI БИТВА
-    // AI всегда будет получать артефакты и опыт за побеждённого врага
-    _PI->WriteByte(0x426F41,0);
-
-    // AI битва (просчёт)
-    // проверка на скорость монстра и когда он дойдет до защиты стрелка.
-    // Убираем из проверки существ с нулевой скоростью и боевые машины
-    _PI->WriteHiHook(0x4B3C80, SPLICE_, EXTENDED_, THISCALL_, Y_AIMgr_Stack_MinRoundToReachHex);
 
     // фикс вылета: нет проверки на на наличие стуктуры целевого стека
     // но тут не хватает проверки на c->edi
@@ -856,6 +853,8 @@ void GameLogic(PatcherInstance* _PI)
     // убираем обновление инфо-панели и панели ресурсов, если активный менеджер не менеджер карты приключений
     _PI->WriteHiHook(0x403F00, SPLICE_, EXTENDED_, THISCALL_, Y_RedrawResources);
     _PI->WriteLoHook(0x415D4D, Y_AdvMgr_RedrawInfoPanel);
+
+    //_PI->WriteLoHook(0x056AE8A,AIAdvMgr_RedrawInfoPanel);
 
     //// ЧИТ-Меню ////
     // Увеличиваем кол-во заклинаний 999 -> 9999

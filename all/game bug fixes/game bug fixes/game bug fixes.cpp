@@ -23,6 +23,7 @@ char* BATTLE_DLG_NAME = "battle_dlg.daemon.plugin";
 #include "src\HeroMovementFixes.cpp"
 #include "src\ScoutingRadiusFixes.cpp"
 #include "src\GamePatches.cpp"
+#include "src\AIFixes.cpp"
 #include "src\LuckFixes.cpp"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,6 +43,7 @@ void HooksInit(Patcher* _P, PatcherInstance* _PI)
     scouting::ScoutingRadiusFixes(_PI);
     movement::HeroMovementFixes(_PI);
     luck::LuckFixes(_PI);
+    AI::AIFixes(_PI);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////

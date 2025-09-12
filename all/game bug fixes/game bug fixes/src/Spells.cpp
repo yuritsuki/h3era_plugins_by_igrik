@@ -2,56 +2,31 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // фиксим неотображение Монолитов и Подземных врат в диалоге заклинания Просмотр Земли и Воздуха
-_bool_ isVisible_Monoliths;
-_bool_ isVisible_Gates;
-
 int __stdcall Y_Fix_ViewEarthOrAirSpell_Add_Monoliths_Show(LoHook* h, HookContext* c)
 {
     c->edi = c->ecx;                    // mov edi, ecx
     c->ecx = *(_dword_*)(c->esi +30);   // mov ecx, [esi+1Eh]
-    int obj_id = c->ecx; // номер объекта
-    _byte_ isVisible = *(_byte_*)(c->ebp +8 +3);
 
-    int type = 0;
-    if ( obj_id == 43 || obj_id == 44 || obj_id == 45 ) { // Монолиты
-        if ( isVisible_Monoliths || isVisible ) {
+    if (_byte_ isVisible = *(_byte_*)(c->ebp + 8 + 3))
+    {
+        const int obj_id = c->ecx; // номер объекта
+
+        int type = 0;
+        if (obj_id == 43 || obj_id == 44 || obj_id == 45) { // Монолиты
             type = 3;
         }
-    }
 
-    if ( obj_id == 103 ) { // Подземные врата
-        if ( isVisible_Gates || isVisible) {
+        if (obj_id == 103) { // Подземные врата
             type = 4;
         }
-    }
 
-    if ( type == 3 || type == 4 ) { // выполняем функцию отображения Монолитов или Подземных Врат при касте Просмотра Земли или Воздуха
-        CALL_6(_int_, __fastcall, 0x5F7760, *(int*)0x6AAC88, c->esi, type, *(int*)0x6AAC80 + (*(int*)(c->ebp +0x14) * *(int*)0x68C70C), c->edi +8, *(int*)(c->ebp +0x12) );
+        if (type == 3 || type == 4) { // выполняем функцию отображения Монолитов или Подземных Врат при касте Просмотра Земли или Воздуха
+            CALL_6(_int_, __fastcall, 0x5F7760, *(int*)0x6AAC88, c->esi, type, *(int*)0x6AAC80 + (*(int*)(c->ebp + 0x14) * *(int*)0x68C70C), c->edi + 8, *(int*)(c->ebp + 0x12));
+        }
     }
 
     c->return_address = 0x5F854A;
     return NO_EXEC_DEFAULT;
-}
-
-int __stdcall Y_Fix_ViewEarthOrAirSpell_Add_Monoliths_Prepare(LoHook* h, HookContext* c)
-{
-    int spell = *(int*)(c->ebp +8);
-    int power = *(int*)(c->ebp +12);
-
-    isVisible_Gates = false;
-    isVisible_Monoliths = false;
-
-    if ( spell == 5 ) // Просмотр воздуха
-    {
-        if ( power >= 2 ) { // показываем Подземные Врата
-            isVisible_Gates = true;
-        }
-        if ( power >= 3 ) { // показываем Монолиты
-            isVisible_Monoliths = true;
-        }
-    }
-
-    return EXEC_DEFAULT;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -146,7 +121,33 @@ int __stdcall LoHook_RestrictDispel_Poison(LoHook* h, HookContext* c)
         return EXEC_DEFAULT;
     }
 }
+// Фикс бага SoD: дд - возможность сделать каст в самого героя и отмена при попытке прыгнуть с суши на воду и за пределы карты
+_LHF_(DimensionDoorProcMouseOver)
+{
 
+    DWORD pos = 0;//H3Position
+    DWORD* mousePos = CALL_2(DWORD*, __thiscall, 0x407A70, o_AdvMgr, &pos);
+    if (CALL_1(bool, __thiscall,0x4B1090, mousePos))  // H3Position::isCorrect
+    {
+        _MapItem_* targetCell = reinterpret_cast<_MapItem_*>(c->eax);
+        
+        _Hero_* hero = o_GameMgr->GetHero(o_ActivePlayer->selected_hero_id);
+        _MapItem_* heroCell = o_GameMgr->Map.GetItem(hero->x, hero->y, hero->z);
+        if (targetCell != heroCell)
+        {
+            BOOL isHeroWater = heroCell->land == 8;
+            BOOL isTargetWater = targetCell->land == 8;
+
+            if (isHeroWater == isTargetWater)
+            {
+                return EXEC_DEFAULT;
+            }
+        }
+    }
+
+    c->return_address = 0x4915D3;
+    return NO_EXEC_DEFAULT;
+}
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -163,7 +164,6 @@ void Spells(PatcherInstance* _PI)
     _PI->WriteHiHook(0x5A1C7B, CALL_, EXTENDED_, THISCALL_, Y_Fix_WoG_HeroGetSpellSpecialityEffect);
 
     // фиксим неотображение Монолитов и Подземных врат в диалоге заклинания Просмотр Земли и Воздуха
-    _PI->WriteLoHook(0x5FC3EC, Y_Fix_ViewEarthOrAirSpell_Add_Monoliths_Prepare);
     _PI->WriteLoHook(0x5F8545, Y_Fix_ViewEarthOrAirSpell_Add_Monoliths_Show);
 
     // фикс неправильного отображения величины урона в окне статуса битвы при касте заклинания Армагеддон
@@ -172,7 +172,11 @@ void Spells(PatcherInstance* _PI)
     // Наличие яда теперь не даёт колдовать Снятие Заклинаний.
     _PI->WriteLoHook(0x5A84BD, LoHook_RestrictDispel_Poison);
 
+    // Фикс бага SoD: дд - возможность сделать каст в самого героя и отмена при попытке прыгнуть с суши на воду и за пределы карты
+    _PI->WriteLoHook(0x4915B7, DimensionDoorProcMouseOver);
 
+    // Исправление бага с несбросом защитной стойки и бешенства стека перед ходом, если ход ему был передан первый раз - уже в фазе ожидания.
+    _PI->WriteCodePatch(0x464DF1, "%n", 10); // 10 nop
     // патчи без Tiphon.dll
     if (!TIPHON)
     {
