@@ -2,9 +2,31 @@
 ////////////////////////////////////////////// ПАТЧИ ////////////////////////////////////////////////
 namespace movement
 {
+
+// запрет взаимодействия через "Пробел" при пролёте над несоюзным городом
+void __stdcall AdvMgr_Enter2Object_Player(HiHook *h, _AdvMgr_ *mgr, const _MapItem_ *mip, const int isHuman)
+{
+
+    if (mip->object_type == 98)
+    {
+
+        const _Town_ *townBelow = o_GameMgr->GetTown(mip->setup);
+      //  if (townBelow->down_hero_id == -1)
+        {
+            const int townOwner = townBelow->owner_id;
+
+            if (townOwner < 0 ) // o_GameMgr->GetPlayerTeam(townBelow->owner_id) != o_GameMgr->GetPlayerTeam(o_ActivePlayerID))
+            {
+                return;
+            }
+        }
+        return;
+
+    }
+    CALL_3(void, __thiscall, h->GetDefaultFunc(), mgr, mip, isHuman);
+}
 // Оставшиеся полные очки передвижения героя.
 int HeroFullMP_Rem;
-
 
 // Обновление стрелок маршрута героя.
 _LHF_(LoHook_RouteUpdate)
@@ -30,8 +52,8 @@ _LHF_(LoHook_ProcessMessage)
 // Инициализация оставшихся полных очков перемещения героя.
 _LHF_(LoHook_HeroRoute_InitMaxMP)
 {
-    _Hero_*hero = reinterpret_cast<_Hero_*>(c->ebx);
-    _Player_* player = &o_GameMgr->players[hero->owner_id];
+    _Hero_ *hero = reinterpret_cast<_Hero_ *>(c->ebx);
+    _Player_ *player = &o_GameMgr->players[hero->owner_id];
 
     // Получаем полные очки перемещения героя.
     HeroFullMP_Rem = hero->movement_max;
@@ -66,7 +88,7 @@ _LHF_(LoHook_HeroRoute_InitMaxMP)
 _LHF_(LoHook_HeroRoute_ReduceMaxMP)
 {
     // Герой.
-    _Hero_* hero = reinterpret_cast<_Hero_*>(c->ebx);
+    _Hero_ *hero = reinterpret_cast<_Hero_ *>(c->ebx);
 
     // Уменьшаем полные очки перемещения героя на шаг.
     HeroFullMP_Rem -= CALL_4(int, __fastcall, 0x4B1620, hero, c->esi, DwordAt(c->ebp - 0x1C), HeroFullMP_Rem);
@@ -91,9 +113,10 @@ _LHF_(LoHook_HeroRoute_SpecRouteMaxMP)
 void HeroMovementFixes(PatcherInstance *_PI)
 {
 
-
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////// Фиксы Карты Приключений /////////////////////////
+    // запрет взаимодействия через "Пробел" при пролёте над несоюзным городом
+ //   _PI->WriteHiHook(0x0408DC5, CALL_, EXTENDED_, THISCALL_, AdvMgr_Enter2Object_Player);
 
     // Обновление стрелок маршрута героя.
     _PI->WriteLoHook(0x4082CD, LoHook_RouteUpdate); // После окна героя
@@ -101,14 +124,11 @@ void HeroMovementFixes(PatcherInstance *_PI)
     _PI->WriteLoHook(0x4AA7E5, LoHook_RouteUpdate); // После посещения объекта
     _PI->WriteLoHook(0x41C5F2, LoHook_RouteUpdate); // После колдовства заклинания
 
-
     // AdvMgr_RouteUpdate 00418D30
 
     // Не теребить кнопку лошади
     _PI->WriteLoHook(0x0418D8D, LoHook_ProcessMessage); // 10004570
     _PI->WriteLoHook(0x0418E1D, LoHook_ProcessMessage);
     _PI->WriteLoHook(0x0419153, LoHook_ProcessMessage);
-
-
 }
 } // namespace movement
