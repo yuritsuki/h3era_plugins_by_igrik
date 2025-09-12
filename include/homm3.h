@@ -2846,6 +2846,7 @@ NOALIGN struct _GameMgr_: _Struct_
 //}
  // inline char*  GetHeroName() {return *(char**)((_ptr_)this +  0x1F86C + 0x2D4);}
  inline _Player_* GetPlayer(_int_ player_id) {return ((_Player_ *)(((_ptr_)this) + 0x20AD0 + 360 * player_id));}
+ inline int GetPlayerTeam(_int_ player_id) { return CALL_2(_int_, __thiscall, 0x4C75F0, this, player_id); }
  inline _Town_*  GetTown(_int_ town_id) {return ((_Town_*)(*(_ptr_*)(((_ptr_)this) + 0x21614) + 360 * town_id));}
  inline _int_  GetTownsCount() {return ((_int_)((*(_dword_*)(((_ptr_)this) + 0x21618) - *(_dword_*)(((_ptr_)this) + 0x21614)) / 360));}
  inline _GlobalEvent_* GetGlobalEvent(_int_ index) {return ((_GlobalEvent_*)(*(_ptr_*)(((_ptr_)this) + 0x1fbf4) + 52 * index));}
