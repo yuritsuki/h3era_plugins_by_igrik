@@ -11,17 +11,17 @@ void __stdcall AdvMgr_Enter2Object_Player(HiHook *h, _AdvMgr_ *mgr, const _MapIt
     {
 
         const _Town_ *townBelow = o_GameMgr->GetTown(mip->setup);
-      //  if (townBelow->down_hero_id == -1)
+        //  if (townBelow->down_hero_id == -1)
         {
             const int townOwner = townBelow->owner_id;
 
-            if (townOwner < 0 ) // o_GameMgr->GetPlayerTeam(townBelow->owner_id) != o_GameMgr->GetPlayerTeam(o_ActivePlayerID))
+            if (townOwner <
+                0) // o_GameMgr->GetPlayerTeam(townBelow->owner_id) != o_GameMgr->GetPlayerTeam(o_ActivePlayerID))
             {
                 return;
             }
         }
         return;
-
     }
     CALL_3(void, __thiscall, h->GetDefaultFunc(), mgr, mip, isHuman);
 }
@@ -76,6 +76,7 @@ _LHF_(LoHook_HeroRoute_InitMaxMP)
             }
         }
     }
+
     if (!v4)
     {
         IntAt(c->ebp - 0x4) = 0;
@@ -116,7 +117,7 @@ void HeroMovementFixes(PatcherInstance *_PI)
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////// Фиксы Карты Приключений /////////////////////////
     // запрет взаимодействия через "Пробел" при пролёте над несоюзным городом
- //   _PI->WriteHiHook(0x0408DC5, CALL_, EXTENDED_, THISCALL_, AdvMgr_Enter2Object_Player);
+    //   _PI->WriteHiHook(0x0408DC5, CALL_, EXTENDED_, THISCALL_, AdvMgr_Enter2Object_Player);
 
     // Обновление стрелок маршрута героя.
     _PI->WriteLoHook(0x4082CD, LoHook_RouteUpdate); // После окна героя

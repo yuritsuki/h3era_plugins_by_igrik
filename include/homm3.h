@@ -614,6 +614,8 @@ NOALIGN struct _MapItem_
  _dword_ GetReal__setup() { return CALL_1(_dword_, __thiscall, 0x4FD280, this);}
  _dword_ GetReal__object_type() { return CALL_1(_dword_, __thiscall, 0x4FD220, this);}
  
+ inline _dword_ GetPackedCoordinates();
+
  // Сделать объект посещённым игроком.
  inline void SetAsVisited(_int_ player_ix)
  {
@@ -3920,6 +3922,17 @@ inline void _Resources_::RemoveResources(_Resources_* cost)
     jems -= cost->jems;
     gold -= cost->gold;
 }
+inline _dword_ _MapItem_::GetPackedCoordinates()
+{
+    const int mapSize = o_GameMgr->Map.size;
 
+    UINT delta = this - o_GameMgr->Map.items;
+    const int x = delta % mapSize;
+    delta /= mapSize;
+    const int y = delta % mapSize;
+    const int z = delta / mapSize;
+
+    return b_pack_xyz(x, y, z);
+}
 ///////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////  

@@ -148,6 +148,48 @@ _LHF_(DimensionDoorProcMouseOver)
     c->return_address = 0x4915D3;
     return NO_EXEC_DEFAULT;
 }
+struct H3Point
+{
+    INT32 x;
+    INT32 y;
+    INT32 z;
+};
+template<typename T>
+H3Point ReverseCoordinates(const T* current_point, const T* base_point, UINT map_size)
+{
+    H3Point coordinates;
+    UINT delta = current_point - base_point;
+    coordinates.x = delta % map_size;
+    delta /= map_size;
+    coordinates.y = delta % map_size;
+    coordinates.z = delta / map_size;
+    return coordinates;
+}
+
+// добавление точного количества монстров в хинт бар Карты Приключений при активном заклинании Видение
+_LHF_(Visions_MonsterCommand)
+{
+    _Hero_* hero = *reinterpret_cast<_Hero_**>(c->ebp - 0x10);
+
+
+    // H3Hero::GetVisionsPower
+    if (hero && CALL_1(int,__thiscall, 0x4E6050, hero) > -1)
+    {
+        _MapItem_* cell = reinterpret_cast<_MapItem_*>(c->ebx);
+        DWORD packed = cell->GetPackedCoordinates();
+
+        // H3Hero::IsInVisionsRange
+        if (CALL_2(bool, __thiscall, 0x4E6080, hero, &packed))
+        {
+            const int monCount = cell->setup & 0xFFF;
+            sprintf_s(o_TextBuffer, 0x300u, "%s: %d", (LPCSTR)c->eax, monCount);
+            c->return_address = 0x40C2F9;
+            return NO_EXEC_DEFAULT;
+        }
+    }
+    return EXEC_DEFAULT;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -177,6 +219,10 @@ void Spells(PatcherInstance* _PI)
 
     // Исправление бага с несбросом защитной стойки и бешенства стека перед ходом, если ход ему был передан первый раз - уже в фазе ожидания.
     _PI->WriteCodePatch(0x464DF1, "%n", 10); // 10 nop
+
+	// добавление точного количества монстров в хинт бар Карты Приключений при активном заклинании Видение
+    _PI->WriteLoHook(0x40C2D3, Visions_MonsterCommand);
+
     // патчи без Tiphon.dll
     if (!TIPHON)
     {
