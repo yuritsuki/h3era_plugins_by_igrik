@@ -511,6 +511,36 @@ _LHF_(LoHook_BattleStackVampirism)
     }
     return EXEC_DEFAULT;
 }
+// © daemon_n
+// исправление проверки id существ к иммунитета к превращению в оборотня
+_LHF_(WoG__WereWolfImmunityCheck)
+{
+    const int targetCreatureID = IntAt(c->ebp - 0x8);
+    // командиры и боги теперь корректно получают иммунитет
+    if (Era::IsCommanderId(targetCreatureID) ||
+        targetCreatureID >= CID_EMISSARY_OF_WAR && targetCreatureID <= CID_EMISSARY_OF_LORE)
+    {
+        c->return_address = 0x076778B;
+    }
+    else
+    {
+        c->return_address = 0x0767516;
+    }
+
+    return NO_EXEC_DEFAULT;
+}
+// © daemon_n
+// удаляем лишнюю логику при скрытой битве
+_LHF_(WoG__WereWolfAction)
+{
+    if (o_BattleMgr->IsHiddenBattle())
+    {
+        c->return_address = 0x07676F6;
+        return NO_EXEC_DEFAULT;
+    }
+
+    return EXEC_DEFAULT;
+}
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -604,7 +634,6 @@ void Monsters(PatcherInstance *_PI)
     _PI->WriteLoHook(0x0447D9C, gem_EnchantersFindTargetsForSpell);
     _PI->WriteLoHook(0x0447E4A, gem_EnchantersTryToCastSelectSpell);
 
-
     // © JackSlater
     // Фикс бага SoD - Сказочные драконы колдовали без звука
     _PI->WriteLoHook(0x043D8DE, js_BattleStack_InitAssets_BeforeInitShootingSound);
@@ -646,6 +675,22 @@ void Monsters(PatcherInstance *_PI)
     _PI->WriteLoHook(0x46907B, LoHook_Fix_Fenix_Resurrect);
     // Вампиризм не работает на клонов
     _PI->WriteLoHook(0x440935, LoHook_BattleStackVampirism);
+
+    // удаляем иммунитеты к огню у призраков
+    o_CreatureInfo[CID_GHOST].fireImmunity = false;
+
+    // удаляем иммунитеты к огню у посланников
+    o_CreatureInfo[CID_FIRE_MESSENGER].fireImmunity = false;
+    o_CreatureInfo[CID_EARTH_MESSENGER].fireImmunity = false;
+    o_CreatureInfo[CID_AIR_MESSENGER].fireImmunity = false;
+    o_CreatureInfo[CID_WATER_MESSENGER].fireImmunity = false;
+
+    // © daemon_n
+    // исправление проверки id существ к иммунитета к превращению в оборотня
+    _PI->WriteLoHook(0x07674FA, WoG__WereWolfImmunityCheck);
+    // © daemon_n
+    // удаляем лишнюю логику при скрытой битве
+    _PI->WriteLoHook(0x0767644, WoG__WereWolfAction);
     // патчи без Tiphon.dll
     if (!TIPHON)
     {
