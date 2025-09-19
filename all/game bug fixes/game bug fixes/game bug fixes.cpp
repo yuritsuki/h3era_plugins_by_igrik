@@ -42,7 +42,7 @@ void HooksInit(Patcher* _P, PatcherInstance* _PI)
     SetPathes(_PI);
     scouting::ScoutingRadiusFixes(_PI);
     movement::HeroMovementFixes(_PI);
-    luck::LuckFixes(_PI);
+    //luck::LuckFixes(_PI);
     AI::AIFixes(_PI);
 }
 
