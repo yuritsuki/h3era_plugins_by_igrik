@@ -541,22 +541,6 @@ _LHF_(WoG__WereWolfAction)
 
     return EXEC_DEFAULT;
 }
-
-_LHF_(WoG_DeathStareImmunity)
-{
-    H3CombatCreature* stack = reinterpret_cast<H3CombatCreature*>(c->ecx);
-    const int targetCreatureID = stack->creature_id;
-    if (Era::IsCommanderId(targetCreatureID))
-    {
-        string message = "IF:L^cr id: " + std::to_string(targetCreatureID) + "^";
-        Era::ExecErmCmd(message.c_str());
-        c->return_address = 0x075D702;
-        return NO_EXEC_DEFAULT;
-    }
-
-    return EXEC_DEFAULT;
-
-}
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -707,9 +691,6 @@ void Monsters(PatcherInstance *_PI)
     // © daemon_n
     // удаляем лишнюю логику при скрытой битве
     _PI->WriteLoHook(0x0767644, WoG__WereWolfAction);
-    
-    // Yuritsuki
-    _PI->WriteLoHook(0x075D6B6, WoG_DeathStareImmunity);
     // патчи без Tiphon.dll
     if (!TIPHON)
     {
