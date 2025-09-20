@@ -406,7 +406,7 @@ _LHF_(js_BattleStack_InitAssets_BeforeInitShootingSound)
     return EXEC_DEFAULT;
 }
 
-// © Archer30
+// @ Archer30
 // Fix messing up spell immunity checks for stack exp spells
 // WoG doesn't use the native way to check spell immunity for stack exp spells, this script fixes its behaviours.
 _LHF_(gem_OnCheckWoGSpellImmunity)
@@ -429,7 +429,7 @@ _LHF_(gem_OnCheckWoGSpellImmunity)
 
     return EXEC_DEFAULT;
 }
-// © Archer30
+// @ Archer30
 // Rebalance Hill Forts - the cost of upgrade is calculated based on the level of the upgraded monster instead of the
 // pre-upgraded monster
 _LHF_(gem_OnGetHillFortMonLevel)
@@ -445,23 +445,7 @@ _LHF_(gem_OnGetHillFortMonLevel)
     }
     return EXEC_DEFAULT;
 }
-
-// © JackSlater
-// Фикс бага SoD - двойной урон абилки рыцаря смерти работал только на базовый урон
-_LHF_(LoHook_FixDoubleDamage_DreadKnight)
-{
-    c->edx <<= 1;
-    return EXEC_DEFAULT;
-}
-// © JackSlater
-// Фикс бага SoD - двойной урон баллисты работал только на базовый урон
-_LHF_(LoHook_FixDoubleDamage_Ballista)
-{
-    c->edi <<= 1;
-    return EXEC_DEFAULT;
-}
-
-// © daemon_n
+// @ daemon_n
 // Fix bug with cloning monsters when the monster limit is reached
 _LHF_(gem_AI_GetCloneCastValue)
 {
@@ -472,75 +456,7 @@ _LHF_(gem_AI_GetCloneCastValue)
     }
     return EXEC_DEFAULT;
 }
-typedef _BattleStack_ H3CombatCreature;
-// © JackSlater
-// Существа, из которых были подняты демоны, считаются пожертвованными.
-_LHF_(LoHook_DemonResurrect_DeadForever)
-{
-    // Стек.
-    H3CombatCreature *stack = reinterpret_cast<H3CombatCreature *>(c->esi);
 
-    // Пожертвован.
-    reinterpret_cast<H3CombatCreature *>(c->esi)->creature.sacrificed = true;
-
-    return EXEC_DEFAULT;
-}
-
-// © JackSlater
-// Исправление бага с воскрешением фениксов после исчезновения.
-_LHF_(LoHook_Fix_Fenix_Resurrect)
-{
-    H3CombatCreature *stack = reinterpret_cast<H3CombatCreature *>(c->esi);
-
-    if (stack->creature.sacrificed || stack->creature.summon)
-    {
-        c->return_address = 0x469192;
-        return NO_EXEC_DEFAULT;
-    }
-
-    return EXEC_DEFAULT;
-}
-// © JackSlater
-// Вампиризм не работает на клонов
-_LHF_(LoHook_BattleStackVampirism)
-{
-    if (reinterpret_cast<H3CombatCreature *>(c->edx)->creature.clone)
-    {
-        c->return_address = 0x4412AB;
-        return NO_EXEC_DEFAULT;
-    }
-    return EXEC_DEFAULT;
-}
-// © daemon_n
-// исправление проверки id существ к иммунитета к превращению в оборотня
-_LHF_(WoG__WereWolfImmunityCheck)
-{
-    const int targetCreatureID = IntAt(c->ebp - 0x8);
-    // командиры и боги теперь корректно получают иммунитет
-    if (Era::IsCommanderId(targetCreatureID) ||
-        targetCreatureID >= CID_EMISSARY_OF_WAR && targetCreatureID <= CID_EMISSARY_OF_LORE)
-    {
-        c->return_address = 0x076778B;
-    }
-    else
-    {
-        c->return_address = 0x0767516;
-    }
-
-    return NO_EXEC_DEFAULT;
-}
-// © daemon_n
-// удаляем лишнюю логику при скрытой битве
-_LHF_(WoG__WereWolfAction)
-{
-    if (o_BattleMgr->IsHiddenBattle())
-    {
-        c->return_address = 0x07676F6;
-        return NO_EXEC_DEFAULT;
-    }
-
-    return EXEC_DEFAULT;
-}
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -635,22 +551,21 @@ void Monsters(PatcherInstance *_PI)
     _PI->WriteLoHook(0x0447E4A, gem_EnchantersTryToCastSelectSpell);
 
     // © JackSlater
+    // Фикс бага WoG - Драколичи не имели флаг сплеша для ИИ
+    o_CreatureInfo[CID_DRACOLICH].flags |= 0x100000; // !#DC(MON_FLAG_SPLASH_SHOOTER) = 1048576;
+
+    // © JackSlater
     // Фикс бага SoD - Сказочные драконы колдовали без звука
     _PI->WriteLoHook(0x043D8DE, js_BattleStack_InitAssets_BeforeInitShootingSound);
 
-    // Исправления недочёта SoD с отобржением атаки с бонусами стека.
-    _PI->WriteCodePatch(0x5F37EA, "%n", 11); // 11 nop
-    _PI->WriteCodePatch(0x5F37F8, "%n", 5);  // 5 nop
-    _PI->WriteCodePatch(0x5F3800, "%n", 5);  // 5 nop
-
-    // © Archer30
+    // @ Archer30
     // Fix messing up spell immunity checks for stack exp spells
     // WoG doesn't use the native way to check spell immunity for stack exp spells, this script fixes its behaviours.
     // Sorceress spell uses the same function, yet it seems to respect correct spell immunity, thus we igonre here.
     // Discussion: http://wforum.heroes35.net/showthread.php?tid=4218&pid=139198#pid139198
     _PI->WriteLoHook(0x75BA02, gem_OnCheckWoGSpellImmunity);
     //
-    // © Archer30
+    // @ Archer30
     // Rebalance Hill Forts - the cost of upgrade is calculated based on the level of the upgraded monster instead of
     // the pre-upgraded monster ; This is considered a bug fix as in the original H3, every upgrade has the same
     // creature level before and after
@@ -660,37 +575,10 @@ void Monsters(PatcherInstance *_PI)
     //     Hill Forts always do to low level creatures)
     _PI->WriteLoHook(0x4E800F, gem_OnGetHillFortMonLevel);
 
-    // © JackSlater
-    // Фикс бага SoD - двойной урон баллисты и абилки рыцаря смерти работал только на базовый урон
-    _PI->WriteLoHook(0x4436EA, LoHook_FixDoubleDamage_DreadKnight);
-    _PI->WriteLoHook(0x443615, LoHook_FixDoubleDamage_Ballista);
-
-    // © daemon_n
+    // @ daemon_n
     // Fix bug with cloning monsters when the monster limit is reached
     _PI->WriteLoHook(0x43AF42, gem_AI_GetCloneCastValue);
 
-    // Существа, из которых были подняты демоны, считаются пожертвованными.
-    _PI->WriteLoHook(0x5A76C6, LoHook_DemonResurrect_DeadForever);
-    // Исправление бага с воскрешением фениксов после исчезновения.
-    _PI->WriteLoHook(0x46907B, LoHook_Fix_Fenix_Resurrect);
-    // Вампиризм не работает на клонов
-    _PI->WriteLoHook(0x440935, LoHook_BattleStackVampirism);
-
-    // удаляем иммунитеты к огню у призраков
-    o_CreatureInfo[CID_GHOST].fireImmunity = false;
-
-    // удаляем иммунитеты к огню у посланников
-    o_CreatureInfo[CID_FIRE_MESSENGER].fireImmunity = false;
-    o_CreatureInfo[CID_EARTH_MESSENGER].fireImmunity = false;
-    o_CreatureInfo[CID_AIR_MESSENGER].fireImmunity = false;
-    o_CreatureInfo[CID_WATER_MESSENGER].fireImmunity = false;
-
-    // © daemon_n
-    // исправление проверки id существ к иммунитета к превращению в оборотня
-    _PI->WriteLoHook(0x07674FA, WoG__WereWolfImmunityCheck);
-    // © daemon_n
-    // удаляем лишнюю логику при скрытой битве
-    _PI->WriteLoHook(0x0767644, WoG__WereWolfAction);
     // патчи без Tiphon.dll
     if (!TIPHON)
     {

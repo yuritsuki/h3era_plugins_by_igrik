@@ -614,8 +614,8 @@ NOALIGN struct _DlgTextEdit_ : public _DlgStaticTextPcx8ed_
 // _DlgChatTextEdit_:
 ///////////////////////////////
  // _byte_ field_70;
- // _byte_ enteringText; // +0x70
- // _byte_ field_71[3];
+ _byte_ enteringText; // +0x70
+ _byte_ field_71[3];
 ///////////////////////////////
 
 //virtual 

@@ -430,45 +430,7 @@ NOALIGN struct _CreatureInfo_
  _int_ level;
  _char_* sound_name;
  _char_* def_name;
- union {
-     struct
-     {
-         unsigned doubleWide : 1;     // 1
-         unsigned flyer : 1;          // 2
-         unsigned shooter : 1;        // 4
-         unsigned extendedAttack : 1; // 8 ~ aka dragon breath
-         unsigned alive : 1;          // 10
-         unsigned destroyWalls : 1;   // 20
-         unsigned siegeWeapon : 1;    // 40
-         unsigned king1 : 1; // 80 ~ all creatures of 7th level and neutral dragons that do not belong to the KING2 or KING3
-         unsigned king2 : 1;        // 100
-         unsigned king3 : 1;        // 200
-         unsigned mindImmunity : 1; // 400
-         unsigned shootsRay : 1; // 800 WoG incorrectly refers to this as 'no obstacle penalty' instead it's a flag used
-         // to draw a straight line when shooting - see 0x43F23D
-         unsigned noMeleePenalty : 1;  // 1000
-         unsigned unk2000 : 1;         // 2000
-         unsigned fireImmunity : 1;    // 4000
-         unsigned doubleAttack : 1;    // 8000
-         unsigned noRetaliation : 1;   // 10000
-         unsigned noMorale : 1;        // 20000
-         unsigned undead : 1;          // 40000
-         unsigned attackAllAround : 1; // 80000
-         unsigned fireballAttack : 1;  // 100000
-         unsigned cannotMove : 1;      // 200000 ~21
-         unsigned summon : 1;          // 400000
-         unsigned clone : 1;           // 800000
-         unsigned morale : 1;          // 1000000
-         unsigned waiting : 1;         // 2000000 ~25
-         unsigned done : 1;            // 4000000
-         unsigned defending : 1;       // 8000000
-         unsigned sacrificed : 1;      // 10000000
-         unsigned noColoring : 1;      // 20000000
-         unsigned gray : 1;            // 40000000
-         unsigned dragon : 1;          // 80000000
-     };
-     _dword_ flags;
- };
+ _int_ flags;
  _char_* name_single;
  _char_* name_plural;
  _char_* specification_description;
@@ -571,11 +533,6 @@ NOALIGN struct _HStringF_
  _byte_ dummy_f1[3];
  _HString_ h_str;
  _int_ size;
- // Очистка строки.
- inline void Clear(_bool8_ not_init)
- {
-     CALL_2(void, __thiscall, 0x404130, this, not_init);
- }
 };
 NOALIGN struct _GlobalEvent_
 {
@@ -614,8 +571,6 @@ NOALIGN struct _MapItem_
  _dword_ GetReal__setup() { return CALL_1(_dword_, __thiscall, 0x4FD280, this);}
  _dword_ GetReal__object_type() { return CALL_1(_dword_, __thiscall, 0x4FD220, this);}
  
- inline _dword_ GetPackedCoordinates();
-
  // Сделать объект посещённым игроком.
  inline void SetAsVisited(_int_ player_ix)
  {
@@ -2841,14 +2796,13 @@ NOALIGN struct _GameMgr_: _Struct_
   return (townId >= 0 ) ? &o_GameMgr->towns[townId] : NULL;
  }
 
- inline _Hero_*  GetHero(_int_ hero_id) {  return CALL_2(_Hero_*,__thiscall, 0x04317D0,this,hero_id); }
-//  inline _Hero_*  GetHero(_int_ hero_id) {
-//    if (hero_id < 0 || hero_id >= o_HEROES_COUNT) return 0;
-//    return ((_Hero_ *)(((_ptr_)this) + GAME_HEROES_OFFSET /*0x21620*/ + 1170 * hero_id)); 
-//}
+ inline _Hero_*  GetHero(_int_ hero_id) {
+    if (hero_id < 0 || hero_id >= o_HEROES_COUNT) return 0;
+    return ((_Hero_ *)(((_ptr_)this) + GAME_HEROES_OFFSET /*0x21620*/ + 1170 * hero_id)); 
+}
+
  // inline char*  GetHeroName() {return *(char**)((_ptr_)this +  0x1F86C + 0x2D4);}
  inline _Player_* GetPlayer(_int_ player_id) {return ((_Player_ *)(((_ptr_)this) + 0x20AD0 + 360 * player_id));}
- inline int GetPlayerTeam(_int_ player_id) { return CALL_2(_int_, __thiscall, 0x4C75F0, this, player_id); }
  inline _Town_*  GetTown(_int_ town_id) {return ((_Town_*)(*(_ptr_*)(((_ptr_)this) + 0x21614) + 360 * town_id));}
  inline _int_  GetTownsCount() {return ((_int_)((*(_dword_*)(((_ptr_)this) + 0x21618) - *(_dword_*)(((_ptr_)this) + 0x21614)) / 360));}
  inline _GlobalEvent_* GetGlobalEvent(_int_ index) {return ((_GlobalEvent_*)(*(_ptr_*)(((_ptr_)this) + 0x1fbf4) + 52 * index));}
@@ -3762,33 +3716,21 @@ NOALIGN struct _Npc_
  _int_ LastExpaInBattle; // 0x14     +20   Опыт в прошлых битвах
  _dword_ CustomPrimary;  // 0x18     +24   Если установить 1 (вкл), первичные навыки не будут изменяться с продвижением командира по уровням
                          //                Если установить 0, то здоровье и урон  будут автоматически прибавляться вместе с уровнем командира (из ERM Help = CO:P)
- union  {
-  _int_ primary_skills[7]; // 0x1C     +28   Первичные_навыки (Атака, Защита, Здоровье, Урон, Сила_магии, Скорость, Сопротивление)
-  struct
-  {
-   _int_ attack;         // 0x1C     +28   Атака
-   _int_ defence;        // 0x20     +32   Защита
-   _int_ hit_points;     // 0x24     +36   Здоровье
-   _int_ damage;         // 0x28     +40   Урон
-   _int_ spell_power;    // 0x2C     +44   Сила_магии
-   _int_ speed;          // 0x30     +48   Скорость
-   _int_ resistance;     // 0x34     +52   Сопротивление
-  };
- };
+ _int_ attack;           // 0x1C     +28   Атака
+ _int_ defence;          // 0x20     +32   Защита
+ _int_ hit_points;       // 0x24     +36   Здоровье
+ _int_ damage;           // 0x28     +40   Урон
+ _int_ spell_power;      // 0x2C     +44   Сила_магии
+ _int_ speed;            // 0x30     +48   Скорость
+ _int_ resistance;       // 0x34     +52   Сопротивление
 
- union {
-     _int_ secondary_skills[7];
-     struct {
-         _int_ lvl_attack;       // 0x38     +56   Уровень_Атаки
-         _int_ lvl_defence;      // 0x3C     +60   Уровень_Защиты
-         _int_ lvl_hit_points;   // 0x40     +64   Уровень_Здоровья
-         _int_ lvl_damage;       // 0x44     +68   Уровень_Урона
-         _int_ lvl_spell_power;  // 0x48     +72   Уровень_Сила_магии
-         _int_ lvl_speed;        // 0x4C     +76   Уровень_Скорости
-         _int_ lvl_resistance;   // 0x50     +80   Уровень_Сопротивления
-     };
- };
-
+ _int_ lvl_attack;       // 0x38     +56   Уровень_Атаки
+ _int_ lvl_defence;      // 0x3C     +60   Уровень_Защиты
+ _int_ lvl_hit_points;   // 0x40     +64   Уровень_Здоровья
+ _int_ lvl_damage;       // 0x44     +68   Уровень_Урона
+ _int_ lvl_spell_power;  // 0x48     +72   Уровень_Сила_магии
+ _int_ lvl_speed;        // 0x4C     +76   Уровень_Скорости
+ _int_ lvl_resistance;   // 0x50     +80   Уровень_Сопротивления
 
  _word_ arts[10][8];     // 0x54     +84   Номер_артефакта; Кол-во проведённых с ним битв
  _char_ name[32];        // 0xF4     +244  Имя
@@ -3796,9 +3738,6 @@ NOALIGN struct _Npc_
  _int_ now_expa;         // 0x118    +280  Текущий_опыт
  _int_ now_level;        // 0x11C    +284  Текущий_уровень (при отображении добавляем +1)
  _dword_ specBon[2];     // 0x120    +288  Особые_бонусы(сумма_битов); Запрещенные_бонусы(сумма_битов)
-
- // Функция проверки, носит ли командир артефакт
- inline int HasArtifact(_int_ art_id) { return CALL_2(int, __thiscall, 0x76E23D, this, art_id); }
 };
 
 // функция получения адреса структуры командира
@@ -3818,7 +3757,8 @@ NOALIGN struct _Npc_
  inline char* GetText_FromZVar(int z_num) {return CALL_3(char*, __cdecl, 0x73DF05, 0x9271E8 + 512*z_num, 1, 0);}
  inline char* GetText_FromERT(int z_num)  {return CALL_1 (char*, __cdecl, 0x776620, z_num);}
  
-
+ // Функция проверки, носит ли командир артефакт
+ inline int Npc_HasArtifact(_Npc_* npc, _int_ art_id) { return CALL_2(int, __thiscall, 0x76E23D, npc, art_id); }
 
 // структура опыта стека
  #define o_CrExpo_ ((_CrExpo_*)0x860550)         
@@ -3922,17 +3862,6 @@ inline void _Resources_::RemoveResources(_Resources_* cost)
     jems -= cost->jems;
     gold -= cost->gold;
 }
-inline _dword_ _MapItem_::GetPackedCoordinates()
-{
-    const int mapSize = o_GameMgr->Map.size;
 
-    UINT delta = this - o_GameMgr->Map.items;
-    const int x = delta % mapSize;
-    delta /= mapSize;
-    const int y = delta % mapSize;
-    const int z = delta / mapSize;
-
-    return b_pack_xyz(x, y, z);
-}
 ///////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////  

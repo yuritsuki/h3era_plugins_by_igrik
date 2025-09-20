@@ -28,7 +28,18 @@ int __stdcall Y_SetCanselScholarlySS(LoHook* h, HookContext* c)
     return NO_EXEC_DEFAULT;
 }
 
-
+// © Raistlin
+// Исправляем косяк, из-за которого ИИ не мог использовать торговцев артефактами в Сопряжении
+int __stdcall R_FixAI_ConfluxNerchant(LoHook* h, HookContext* c)
+{
+    if ((c->eax & 0xFF) == TOWN_CONFLUX) // al
+    {
+        *(int*)(c->ebp - 36) = c->ecx;
+        c->return_address = 0x525EE0;
+        return NO_EXEC_DEFAULT;
+    }
+    return EXEC_DEFAULT;
+}
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,7 +63,18 @@ void __cdecl Y_WoG_UnMixedPos_Fix(HiHook* hook, _dword_ x, _dword_ y, _dword_ z,
     return;
 }
 
+// фикс вылета: АИ битва (просчёт)
+// проверка на скорость монстра и когда он дойдет до защиты стрелка.
+// Убираем из проверки существ с нулевой скоростью и боевые машины
+_int_ __stdcall Y_AIMgr_Stack_MinRoundToReachHex(HiHook* hook, _dword_ this_, _BattleStack_* stack, _int_ a3)
+{
+    if (stack->creature.flags == BCF_CANT_MOVE || stack->creature.speed < 1)
+    {
+        return 99; // 99 раундов необходимо, чтобы добраться до стрелка
+    }
 
+    return CALL_3(_int_, __thiscall, hook->GetDefaultFunc(), this_, stack, a3);
+}
 
 // фикс вылета: нет проверки на наличие стуктуры целевого стека
 // но тут не хватает проверки на c->edi
@@ -212,7 +234,12 @@ _LHF_(Y_Dlg_BattleResults_IgnoreClones)
     return EXEC_DEFAULT;
 }
 
-
+// Перерасчёт морали и удачи отрядов сразу после каста массовых заклинаний артефактами в начале битвы
+_LHF_(Gem_OnAfterArtSpellCasting)
+{
+    o_BattleMgr->RecalculateLuckAndMorale();
+    return EXEC_DEFAULT;
+}
 
 
 /**
@@ -264,21 +291,6 @@ _LHF_(Y_Fix_HeroesOnWaterCheckInteract)
 
   c->return_address = 0x4814DD;
   return NO_EXEC_DEFAULT;
-}
-
-// Исправление копейщиков в лагерях беженцев (только для клетки с триггером).
-_LHF_(LoHook_FixRefugeeCamp_dx)
-{
-    // Клетка.
-    _MapItem_* item = reinterpret_cast<_MapItem_*>(c->edi);
-
-    // Если это загрузка карты или не лагерь беженцев - устанавливаем подтип.
-    if (ByteAt(c->ebp + 0xC) || item->object_type != 78)
-    {
-        item->os_type = LOWORD(c->edx);
-    }
-
-    return EXEC_DEFAULT;
 }
 
 // решение вылета в городе после битвы, когда её инициируют в городе (например ERM или очарование Суккубов)
@@ -335,81 +347,7 @@ _LHF_(Y_OnDeleteObjectOnMap)
   }
   return EXEC_DEFAULT;
 }
-int globRecord = false;
-int __stdcall HiHook_004aa820(HiHook*h, _AdvMgr_* a2, _MapItem_* a3, int XYZ, int record)
-{
-    globRecord = record;
-	return CALL_4(int, __thiscall, h->GetDefaultFunc(), a2, a3, XYZ, record);
-}
 
-_LHF_(LoHook_004AA9B3)
-{
-
-   NOALIGN struct _Boat_
-    {
-        INT16 x;
-        /** @brief [02]*/
-        INT16 y;
-        /** @brief [04]*/
-        INT16 z;
-        /** @brief [06]*/
-        INT8 visible;
-        /** @brief [07] no clue how to get this offset without align-1, may be substructure*/
-        _MapItem_* item;
-        char _f_0B;
-        /** @brief [0C]*/
-        INT32 objectType;
-        /** @brief [10]*/
-        INT8 objectFlag;
-        char _f_11[3];
-        /** @brief [14]*/
-        INT32 objectSetup;
-        /** @brief [18]*/
-        INT8 exists;
-        /** @brief [19]*/
-        INT8 index;
-        /** @brief [1A]*/
-        INT8 par1;
-        /** @brief [1B]*/
-        INT8 par2;
-        /** @brief [1C]*/
-        INT8 owner;
-        char _f_1D[3];
-        /** @brief [20]*/
-        INT32 heroId;
-        /** @brief [24]*/
-        char hasHero;
-        char _f_25[3];
-    };
-    _MapItem_* cell; // esi
-    _Hero_* hero; // ebx
-    _Boat_* v4; // edi
-
-    cell = (_MapItem_*)c->edx;
-    hero = 0;
-    v4 = 0;
-    if (cell->object_type == 34)
-    {
-        hero = o_GameMgr->GetHero( cell->setup);
-        hero->Hide();
-    }
-    if (cell->object_type == 8)
-    {
-        v4 = &o_GameMgr->Field<_List_<_Boat_>>(0x4E3B8)[cell->setup];
-        CALL_3(void, __thiscall, 0x4D7840, v4, 8, v4->index);
-    }
-    cell->setup = -1;
-    if (v4)
-		CALL_3(void, __thiscall, 0x4D7840, v4, 8, v4->index);
-    if (hero)
-        hero->Show(34, hero->id);
-    return 0;
-}
-
-_LHF_(LoHook_004AA9BF)
-{
-    return globRecord != 0;
-}
 // © SadnessPower
 // Пожиратель душ ранее воскрешал стеки существ, уровень которых больше 4,
 // если их здоровье было меньше 50
@@ -525,134 +463,13 @@ _LHF_(js_BattleMgr_CastSpell_BeforeSwitchCase)
     }
     return EXEC_DEFAULT;
 }
-
-// © JackSlater
-// Прыжок через ProcessMessagesForTime, если скрытая битва
-
-_LHF_(LoHook_00441B25)
-{
-    if (!o_BattleMgr->IsHiddenBattle())
-    {
-        return EXEC_DEFAULT;
-    }
-
-    c->return_address = 0x441B43;
-    return NO_EXEC_DEFAULT;
-}
-// © JackSlater
-// Прыжок через ProcessMessagesForTime, если скрытая битва
-_LHF_(LoHook_00441BD6)
-{
-    if (!o_BattleMgr->IsHiddenBattle())
-    {
-        return EXEC_DEFAULT;
-    }
-
-    c->return_address = 0x441BF5;
-    return NO_EXEC_DEFAULT;
-}
-// Оковы войны действуют только в битве двух героев (ИИ).
-int __stdcall LoHook_ShacklesRest_AI(LoHook* h, HookContext* c)
-{
-    // Менеджер боя.
-    _BattleMgr_* b_mgr = (_BattleMgr_*)c->esi;
-
-    // Оковы действуют только если есть
-    if (!b_mgr->hero[0] || !b_mgr->hero[1])
-    {
-        c->return_address = 0x41E77C;
-
-        return NO_EXEC_DEFAULT;
-    }
-    else
-    {
-        return EXEC_DEFAULT;
-    }
-}
-
-
-// Оковы войны действуют только в битве двух героев (побег).
-int __stdcall LoHook_ShacklesRest_Surrend(LoHook* h, HookContext* c)
-{
-    // Менеджер боя.
-    _BattleMgr_* b_mgr = (_BattleMgr_*)c->esi;
-
-    // Оковы действуют только если есть
-    if (!b_mgr->hero[0] || !b_mgr->hero[1])
-    {
-        c->return_address = 0x478E1E;
-
-        return NO_EXEC_DEFAULT;
-    }
-    else
-    {
-        return EXEC_DEFAULT;
-    }
-}
-
-
-// Оковы войны действуют только в битве двух героев (сдача).
-int __stdcall LoHook_ShacklesRest_GU(LoHook* h, HookContext* c)
-{
-    // Менеджер боя.
-    _BattleMgr_* b_mgr = (_BattleMgr_*)c->esi;
-
-    // Оковы действуют только если есть
-    if (!b_mgr->hero[0] || !b_mgr->hero[1])
-    {
-        c->return_address = 0x478EE6;
-
-        return NO_EXEC_DEFAULT;
-    }
-    else
-    {
-        return EXEC_DEFAULT;
-    }
-}
-// Баг: срабатывание огненного щита по трупу - перепрыгиваем AfterAttackAbilities и GetFireshieldDamage, если
-// count_current <=0
-_LHF_(LoHook_00441982)
-{
-    if (reinterpret_cast<_BattleStack_*>(c->esi)->count_current > 0)
-    {
-        return EXEC_DEFAULT;
-    }
-    c->return_address = 0x4419A5;
-    return NO_EXEC_DEFAULT;
-}
-// Баг: перед контратакой - проверка на count_current цели
-_LHF_(LoHook_00441AFF)
-{
-
-    if (reinterpret_cast<_BattleStack_*>(c->edi)->count_current > 0)
-    {
-        return EXEC_DEFAULT;
-    }
-    c->return_address = 0x441B85;
-    return NO_EXEC_DEFAULT;
-}
-// исправление активной стороны при контратаке
-char __stdcall HiHook_00441b5d(HiHook* h, _BattleStack_* attacker, _BattleStack_* target, int direction)
-{
-    int currentStackIndex = o_BattleMgr->currentStackIndex;
-    int currentStackSide = o_BattleMgr->currentStackSide;
-    o_BattleMgr->currentStackSide = attacker->side;
-    o_BattleMgr->currentStackIndex = attacker->index_on_side;
-
-    char result = CALL_3(char, __thiscall, h->GetDefaultFunc(), attacker, target, direction);
-
-    o_BattleMgr->currentStackSide = currentStackSide;
-    o_BattleMgr->currentStackIndex = currentStackIndex;
-    return result;
-}
-
 // ##############################################################################################################################
 // ##############################################################################################################################
 // ##############################################################################################################################
+
 
 void GameLogic(PatcherInstance* _PI)
 {
-
     // фикс: двуклеточные монстры в бою могут сделать 1 шаг назад
     _PI->WriteCodePatch(0x47601E, "%n", 7); // 7 nops
     _PI->WriteLoHook(0x476020, Y_FixBattle_StackStepBack);
@@ -703,7 +520,9 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteDword(0x678344 + 11*4, 0x3dcccccd); // float 0.1
     _PI->WriteDword(0x678344 + 22*4, 0x3dcccccd); // float 0.1
 
-
+    // © Raistlin
+    // Исправляем косяк, из-за которого ИИ не мог использовать торговцев артефактами в Сопряжении
+    _PI->WriteLoHook(0x525ED1, R_FixAI_ConfluxNerchant);
 
     // фикс WoG'a
     // командиры, имеющие флаг стрельбы и двойной атаки, в рукопашной бъют один раз. Исправим это, ибо они уникальны
@@ -738,6 +557,8 @@ void GameLogic(PatcherInstance* _PI)
     // убираем клонов из показа в диалоге результатов битвы
     _PI->WriteLoHook(0x4708FC, Y_Dlg_BattleResults_IgnoreClones);
 
+    // Перерасчёт морали и удачи отрядов сразу после каста массовых заклинаний артефактами в начале битвы
+    _PI->WriteLoHook(0x4650BF, Gem_OnAfterArtSpellCasting);
 
     // Темница(5) на поверхности генерируется на родном типе земли(6), а не на грязи(0)
     _PI->WriteByte(0x464044, 0xEB);
@@ -746,11 +567,7 @@ void GameLogic(PatcherInstance* _PI)
     // фикс бага при удалении объектов - затираются данные,
     // если жёлтая клетка другого объекта
     // стоит выше на 1 ед. по y-координате
-   // _PI->WriteLoHook(0x4AA979, Y_OnDeleteObjectOnMap);
-    _PI->WriteHiHook(0x4aa820, SPLICE_, EXTENDED_, THISCALL_, HiHook_004aa820);
-    _PI->WriteLoHook(0x04AA9B3, LoHook_004AA9B3);
-    _PI->WriteLoHook(0x04AA9BF, LoHook_004AA9BF);
-    _PI->WriteLoHook(0x04AA9EA, LoHook_004AA9BF);
+    _PI->WriteLoHook(0x4AA979, Y_OnDeleteObjectOnMap);
 
     // © JackSlater
     // фикс бага при получении хинта от Магических Святынь
@@ -780,26 +597,6 @@ void GameLogic(PatcherInstance* _PI)
     // Фикс Бага воскрешения командиром существ со здоровьем <=50, а не макс 5-го уровня
     _PI->WriteLoHook(0x05A881C, BattleStack_AtGettingResurrectionResistance);
 
-	// @ JackSlater
-    // Прыжок через ProcessMessagesForTime, если скрытая битва
-    _PI->WriteLoHook(0x441B25, LoHook_00441B25);
-    _PI->WriteLoHook(0x441BD6, LoHook_00441BD6); // return address ->0x441BF5
-
-
-    // Оковы войны действуют только в битве двух героев (ИИ).
-    _PI->WriteLoHook(0x41E74A, LoHook_ShacklesRest_AI);
-    // Оковы войны действуют только в битве двух героев (побег).
-    _PI->WriteLoHook(0x478DA2, LoHook_ShacklesRest_Surrend);
-    // Оковы войны действуют только в битве двух героев (сдача).
-    _PI->WriteLoHook(0x478EBC, LoHook_ShacklesRest_GU);
-
-    // Баг: срабатывание огненного щита по трупу - перепрыгиваем AfterAttackAbilities и GetFireshieldDamage, если
-    // count_current <=0
-    _PI->WriteLoHook(0x441982, LoHook_00441982);
-    // Баг: перед контратакой - проверка на count_current цели
-    _PI->WriteLoHook(0x441AFF, LoHook_00441AFF);
-    // Баг? _BattleStack_::MeleeAtack (контратака) - фикс сайда
-    _PI->WriteHiHook(0x441b5d, CALL_, EXTENDED_, THISCALL_, HiHook_00441b5d);
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////// Фиксы раздвоения героя //////////////////////////
 
@@ -819,25 +616,17 @@ void GameLogic(PatcherInstance* _PI)
     // добавляем проверку на воду: mapItem->land == 8 (и убираем проверку на лодку)
     _PI->WriteCodePatch(0x4806D9, "F743 04 08000000 752A 909090");
 
-	// @ daemon_n
-    // фикс: посещение мифрила обновляет экран
-	_PI->WriteCodePatch(0x07060AC, "%n", 7); // удалить добавление мифрила костылём
-	_PI->WriteJmp(0x0705F42, 0x0705F7D); // пропустить изменение объекта на карте на костыльное решение
-
-    // Исправление копейщиков в лагерях беженцев (только для клетки с триггером).
-    _PI->WriteCodePatch(0x505E15,"%n", 4);
-    _PI->WriteLoHook(0x505E15, LoHook_FixRefugeeCamp_dx);
-
-    // Теперь в городах игрока при наличии форта всегда будет отстроено 2 уровня существ.
-    _PI->WriteCodePatch(0x5C1051, "%n", 20); // 20 nop
-    // Убираем случайность количества стеков в начальной армии.
-    _PI->WriteCodePatch(0x4C948F, "%n", 5); // 5 nop
-    _PI->WriteCodePatch(0x4C9497, "%n", 10); // 10 nop
-    _PI->WriteCodePatch(0x4C950F, "%n", 20); // 20 nop
-
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////// Фиксы крит.крашей игры //////////////////////////
 
+    // AI БИТВА
+    // AI всегда будет получать артефакты и опыт за побеждённого врага
+    _PI->WriteByte(0x426F41,0);
+
+    // AI битва (просчёт)
+    // проверка на скорость монстра и когда он дойдет до защиты стрелка.
+    // Убираем из проверки существ с нулевой скоростью и боевые машины
+    _PI->WriteHiHook(0x4B3C80, SPLICE_, EXTENDED_, THISCALL_, Y_AIMgr_Stack_MinRoundToReachHex);
 
     // фикс вылета: нет проверки на на наличие стуктуры целевого стека
     // но тут не хватает проверки на c->edi
@@ -853,8 +642,6 @@ void GameLogic(PatcherInstance* _PI)
     // убираем обновление инфо-панели и панели ресурсов, если активный менеджер не менеджер карты приключений
     _PI->WriteHiHook(0x403F00, SPLICE_, EXTENDED_, THISCALL_, Y_RedrawResources);
     _PI->WriteLoHook(0x415D4D, Y_AdvMgr_RedrawInfoPanel);
-
-    //_PI->WriteLoHook(0x056AE8A,AIAdvMgr_RedrawInfoPanel);
 
     //// ЧИТ-Меню ////
     // Увеличиваем кол-во заклинаний 999 -> 9999

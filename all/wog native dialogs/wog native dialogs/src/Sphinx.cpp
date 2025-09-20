@@ -174,7 +174,7 @@ int New_Dlg_CustomReq_PicDestroy(_Pcx16_* pic[4], int countPictures )
 
 
 // создание и заполнение элементами диалога ввода
-int New_Dlg_CustomReq(_Sphinx1_* Sphinx, char *sphinxAnswer)
+int New_Dlg_CustomReq(_Sphinx1_* Sphinx)
 {
     // базовый возвращаемый аргумент: -1 Отмена
     int result = -1;
@@ -475,8 +475,7 @@ int New_Dlg_CustomReq(_Sphinx1_* Sphinx, char *sphinxAnswer)
 
     // если был создан диалог с вводом текста: возвращаем введенный текст
     if ( edit_text ) {
-        WoG_StrCopy(sphinxAnswer, 512, edit_text->text);
-        Sphinx->Text4 = sphinxAnswer;
+        Sphinx->Text4 = edit_text->text;
     }
 
     // уничтожаем диалог
@@ -594,7 +593,7 @@ int __cdecl Y_Dlg_CustomReq(HiHook* hook, int num, int startup, char **answer)
 
                 // запускаем диалог в WND
                 o_Sphinx1 = (_Sphinx1_*)&Sphinx;
-                New_Dlg_CustomReq(&Sphinx, MyString2);
+                New_Dlg_CustomReq(&Sphinx);
 
                 if ( answer )
                 {
@@ -618,7 +617,7 @@ int __cdecl Y_Dlg_CustomReq(HiHook* hook, int num, int startup, char **answer)
 }
 
 // диалог вопросов Сфинкса
-int __stdcall Y_WoGDlg_SphinxReq(HiHook* hook, int Num)
+int __cdecl Y_WoGDlg_SphinxReq(HiHook* hook, int Num)
 {
     // if ( если окно ввода должно быть отключено (и необходима работа стандартного воговского (опция 911)) )
     if ( BanDlg_CustomReq_EnterText )
@@ -633,7 +632,6 @@ int __stdcall Y_WoGDlg_SphinxReq(HiHook* hook, int Num)
         Sphinx.Text1 = CALL_3(char*, __cdecl, 0x77710B, Num, 0, 0x289BFF0);
         Sphinx.Text2 = CALL_3(char*, __cdecl, 0x77710B, 122, 0, 0x7C8E3C);
         Sphinx.Text3 = 0;
-        Sphinx.Text4 = 0;
         WOG_Answer[0] = '9';
         WOG_Answer[1] = '9';
         WOG_Answer[2] = '9';
@@ -668,17 +666,14 @@ int __stdcall Y_WoGDlg_SphinxReq(HiHook* hook, int Num)
         Y_Mouse_SetCursor(0);
 
         // запускаем создание и выполнение диалога
-        New_Dlg_CustomReq(o_Sphinx1, MyString2);
+        New_Dlg_CustomReq(o_Sphinx1);
 
         // возвращаем курсор мыши
         Y_Mouse_SetCursor(1);
 
         // выполняем WOG'овскиие функции перед передачей управления WOG'у
-        WoG_StrCopy(WOG_Answer, 512, o_Sphinx1->Text4);
- 
-        char* correctAnswer = CALL_3(char*, __cdecl, 0x77710B, Num, 1, 0x289BFF0);
-
-        return CALL_2(int, __cdecl, 0x772DFD, WOG_Answer, correctAnswer);
+        CALL_3(void, __cdecl, 0x710B9B, 0x28AAB88, 512, Sphinx.Text4); // WoG_StrCopy(Answer, int 512, Sphinx.Text4)
+        return CALL_2(int, __cdecl, 0x772DFD, 0x28AAB88, CALL_3(char*, __cdecl, 0x77710B, Num, 1, 0x289BFF0));
     }
 }
 
@@ -687,7 +682,7 @@ int __stdcall Y_WoGDlg_SphinxReq(HiHook* hook, int Num)
 int __cdecl Y_Dlg_QuickDialog(HiHook* hook, _Sphinx1_* Sphinx)
 {
     Y_Mouse_SetCursor(0);
-    int ret = New_Dlg_CustomReq(Sphinx, MyString2);
+    int ret = New_Dlg_CustomReq(Sphinx);
     Y_Mouse_SetCursor(1);
 
     // -1: Esc, 1: Ok
