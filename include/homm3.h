@@ -881,7 +881,11 @@ NOALIGN struct _Hero_: _Struct_
  int AddDollArtifact(_Artifact_* art, int doll_slot_index) {return CALL_3(int, __thiscall, 0x4E2C70, this, art, doll_slot_index);}
  int RemoveBackpackArtifact(int index) {return CALL_2(int, __thiscall, 0x4E2FC0, this, index);}
  int AddBackpackArtifact(_Artifact_* art, int index) {return CALL_3(int, __thiscall, 0x4E3200, this, art, index);}
-
+ // Получить количество артефактов в рюкзаке.
+ _int32_ BackpackArtsCount(_bool8_ allow_war_mashines)
+ {
+     return CALL_2(_bool8_, __thiscall, 0x4D9330, this, allow_war_mashines);
+ }
   // открытие окна героя
  _int_ ShowHeroScreen(_int_ noDissmiss, _int_ noRedrawAdvMap, _byte_ rightClickDlg)
  {
