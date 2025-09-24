@@ -35,6 +35,46 @@ _int_ __stdcall Y_AIMgr_Stack_MinRoundToReachHex(HiHook *hook, _dword_ this_, _B
 
     return CALL_3(_int_, __thiscall, hook->GetDefaultFunc(), this_, stack, a3);
 }
+
+// Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (1).
+int __stdcall LoHook_FixAngelicAllianceAI1(LoHook *h, HookContext *c)
+{
+    // Если существо - нейтрал, пропускаем взятие бита из маски альянса.
+    if (c->esi == -1)
+    {
+        // Восстанавливаем затёртую команду.
+        c->edi = c->eax;
+
+        // Стек не подвержен альянсу.
+        c->return_address = 0x42C7C3;
+
+        return NO_EXEC_DEFAULT;
+    }
+    else
+    {
+        return EXEC_DEFAULT;
+    }
+}
+
+// Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (2).
+int __stdcall LoHook_FixAngelicAllianceAI2(LoHook *h, HookContext *c)
+{
+    // Если существо - нейтрал, пропускаем взятие бита из маски альянса.
+    if (c->edi == -1)
+    {
+        // Восстанавливаем затёртую команду.
+        c->ebx = c->eax;
+
+        // Стек не подвержен альянсу.
+        c->return_address = 0x42C8F9;
+
+        return NO_EXEC_DEFAULT;
+    }
+    else
+    {
+        return EXEC_DEFAULT;
+    }
+}
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -66,6 +106,10 @@ void AIFixes(PatcherInstance *_PI)
     // Исправляем баг SoD: ИИ считал, что облако личей не задевает только нежить.
     _PI->WriteByte(0x41EFA6 + 2, 4);
     _PI->WriteHexPatch(0x41EFAC, "75 16"); // jnz 0x41EFC4
+
+    // + Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (баг SoD).
+    _PI->WriteLoHook(0x42C778, LoHook_FixAngelicAllianceAI1);
+    _PI->WriteLoHook(0x42C8AD, LoHook_FixAngelicAllianceAI2);
 }
 
 } // namespace AI
