@@ -793,11 +793,15 @@ void GameLogic(PatcherInstance* _PI)
     // Оковы войны действуют только в битве двух героев (сдача).
     _PI->WriteLoHook(0x478EBC, LoHook_ShacklesRest_GU);
 
-    // Баг: срабатывание огненного щита по трупу - перепрыгиваем AfterAttackAbilities и GetFireshieldDamage, если
-    // count_current <=0
-    _PI->WriteLoHook(0x441982, LoHook_00441982);
-    // Баг: перед контратакой - проверка на count_current цели
-    _PI->WriteLoHook(0x441AFF, LoHook_00441AFF);
+    if (!TIPHON)
+    {
+        // Баг: срабатывание огненного щита по трупу - перепрыгиваем AfterAttackAbilities и GetFireshieldDamage, если
+        // count_current <=0
+        _PI->WriteLoHook(0x441982, LoHook_00441982);
+        // Баг: перед контратакой - проверка на count_current цели
+        _PI->WriteLoHook(0x441AFF, LoHook_00441AFF);
+    }
+
     // Баг? _BattleStack_::MeleeAtack (контратака) - фикс сайда
     _PI->WriteHiHook(0x441b5d, CALL_, EXTENDED_, THISCALL_, HiHook_00441b5d);
     ///////////////////////////////////////////////////////////////////////////
