@@ -183,8 +183,7 @@ _LHF_(Y_NPC_FixDoubleAttackOnMelle)
     // т.е. мы гарантированно знаем, что стек имеет двойную атаку
     if (stack->creature.flags & BCF_CAN_SHOOT)
     {
-        if (stack->creature_id >= CID_COMMANDER_FIRST_A &&
-            stack->creature_id <= CID_COMMANDER_LAST_D )
+        if (Era::IsCommanderId(stack->creature_id))
         {
             // может иметь двойную атаку
             c->return_address = 0x441BB1;
@@ -752,10 +751,6 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteLoHook(0x04AA9BF, LoHook_004AA9BF);
     _PI->WriteLoHook(0x04AA9EA, LoHook_004AA9BF);
 
-    // © JackSlater
-    // фикс бага при получении хинта от Магических Святынь
-    // ранее использовался массив с заклинаиями от артефактов 0x430 -> 0x3EA
-    _PI->WriteWord(0x40D979 +3, 0x3EA);
 
 
     // © JackSlater
@@ -771,10 +766,8 @@ void GameLogic(PatcherInstance* _PI)
     // Исправляем баг SoD: сброс посещённости сирен после боя.
     _PI->WriteCodePatch(0x4DA8FC, "%n", 24); // 24 nop
 
-    // Фикс Уланда - герой имеет продвинутую мудрость на старте
-    o_HeroInfo[HID_ULAND].second_skill_1_lvl = 1;
-    // Фикс Димера - герой имеет продвинутую разведку на старте
-    o_HeroInfo[HID_DEEMER].second_skill_2_lvl = 1;
+
+
 
     // © SadnessPower
     // Фикс Бага воскрешения командиром существ со здоровьем <=50, а не макс 5-го уровня
@@ -793,13 +786,25 @@ void GameLogic(PatcherInstance* _PI)
     // Оковы войны действуют только в битве двух героев (сдача).
     _PI->WriteLoHook(0x478EBC, LoHook_ShacklesRest_GU);
 
+
+    // Баг: срабатывание огненного щита по трупу - перепрыгиваем AfterAttackAbilities и GetFireshieldDamage, если
+    // count_current <=0
+    _PI->WriteLoHook(0x441982, LoHook_00441982);
+    // Баг: перед контратакой - проверка на count_current цели
+    _PI->WriteLoHook(0x441AFF, LoHook_00441AFF);
     if (!TIPHON)
     {
-        // Баг: срабатывание огненного щита по трупу - перепрыгиваем AfterAttackAbilities и GetFireshieldDamage, если
-        // count_current <=0
-        _PI->WriteLoHook(0x441982, LoHook_00441982);
-        // Баг: перед контратакой - проверка на count_current цели
-        _PI->WriteLoHook(0x441AFF, LoHook_00441AFF);
+
+
+        // © JackSlater
+        // фикс бага при получении хинта от Магических Святынь
+        // ранее использовался массив с заклинаиями от артефактов 0x430 -> 0x3EA
+
+        _PI->WriteWord(0x40D979 + 3, 0x3EA);
+        // Фикс Уланда - герой имеет продвинутую мудрость на старте
+        o_HeroInfo[HID_ULAND].second_skill_1_lvl = 1;
+        // Фикс Димера - герой имеет продвинутую разведку на старте
+        o_HeroInfo[HID_DEEMER].second_skill_2_lvl = 1;
     }
 
     // Баг? _BattleStack_::MeleeAtack (контратака) - фикс сайда

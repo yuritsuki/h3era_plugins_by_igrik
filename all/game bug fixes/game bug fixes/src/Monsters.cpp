@@ -504,7 +504,7 @@ _LHF_(LoHook_Fix_Fenix_Resurrect)
 // Вампиризм не работает на клонов
 _LHF_(LoHook_BattleStackVampirism)
 {
-    if (reinterpret_cast<H3CombatCreature *>(c->edx)->creature.clone)
+    if ((*reinterpret_cast<H3CombatCreature **>(c->ebp + 0x8))->creature.clone)
     {
         c->return_address = 0x4412AB;
         return NO_EXEC_DEFAULT;
@@ -676,15 +676,6 @@ void Monsters(PatcherInstance *_PI)
     // Вампиризм не работает на клонов
     _PI->WriteLoHook(0x440935, LoHook_BattleStackVampirism);
 
-    // удаляем иммунитеты к огню у призраков
-    o_CreatureInfo[CID_GHOST].fireImmunity = false;
-
-    // удаляем иммунитеты к огню у посланников
-    o_CreatureInfo[CID_FIRE_MESSENGER].fireImmunity = false;
-    o_CreatureInfo[CID_EARTH_MESSENGER].fireImmunity = false;
-    o_CreatureInfo[CID_AIR_MESSENGER].fireImmunity = false;
-    o_CreatureInfo[CID_WATER_MESSENGER].fireImmunity = false;
-
     // © daemon_n
     // исправление проверки id существ к иммунитета к превращению в оборотня
     _PI->WriteLoHook(0x07674FA, WoG__WereWolfImmunityCheck);
@@ -697,5 +688,14 @@ void Monsters(PatcherInstance *_PI)
         // корректировка WoG ненависти существ
         // добавляем и существ 8-го уровня
         _PI->WriteLoHook(0x766E4E, Y_SetWogHates);
+
+        // удаляем иммунитеты к огню у призраков
+        o_CreatureInfo[CID_GHOST].fireImmunity = false;
+
+        // удаляем иммунитеты к огню у посланников
+        o_CreatureInfo[CID_FIRE_MESSENGER].fireImmunity = false;
+        o_CreatureInfo[CID_EARTH_MESSENGER].fireImmunity = false;
+        o_CreatureInfo[CID_AIR_MESSENGER].fireImmunity = false;
+        o_CreatureInfo[CID_WATER_MESSENGER].fireImmunity = false;
     }
 }

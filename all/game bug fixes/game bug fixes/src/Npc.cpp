@@ -43,7 +43,7 @@ _int_ __stdcall get_AIValue_Hook(HiHook *hook, int army)
     {
         int heroID = *(int *)(armyNPC - 119);
 
-        if (heroID >= 0 && heroID < 156)
+        if (heroID >= 0 && heroID < o_HEROES_COUNT)
             value += (_int_)getAIValue_NPC(heroID);
     }
 
