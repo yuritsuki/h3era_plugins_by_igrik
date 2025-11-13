@@ -3825,7 +3825,9 @@ NOALIGN struct _Npc_
 
 
 // структура опыта стека
- #define o_CrExpo_ ((_CrExpo_*)0x860550)         
+ #define o_CrExpo_ ((_CrExpo_*)0x860550)  
+// флаг, определяющий, что опыт монстров был получен в битве
+#define o_CreExpoCombatFlag (*(int*)0x2861E14)
 // Структура опыта монстра 340
 NOALIGN struct _CrExpo_: _Struct_
 {

@@ -52,7 +52,36 @@ void __cdecl Y_WoG_UnMixedPos_Fix(HiHook* hook, _dword_ x, _dword_ y, _dword_ z,
     return;
 }
 
+// © daemon_n
+// отключить выдачу опыта существа при старте игры, есои опыт даётся герою вне битвы
+_ERH_(OnGameEnter)
+{
+    // сбрасываем тип источника выдаваемого опыта на "не битва"
+    o_CreExpoCombatFlag = 0;
+}
 
+// © daemon_n 
+// Исправлению получения опыта существами, когда максимальный уровень опыта героем достигнут
+int crexpoBonusExp = 0;
+_LHF_(Hero__AtGiveExperienceAfterLimit)
+{
+    // если опыт из битвы и мы превысили лимит
+    if (o_CreExpoCombatFlag && c->edx > c->esi)
+    {
+        crexpoBonusExp = IntAt(c->ebp + 0x8); // добавить псевдоопыт
+    }
+
+    return EXEC_DEFAULT;
+}
+void __stdcall CrExpoSet_AddExpo(HiHook* h, _Hero_* hero, int expToAdd, const int oldExp)
+{
+    if (crexpoBonusExp)
+    {
+        expToAdd += crexpoBonusExp; // добавить недостающий опыт
+		crexpoBonusExp = 0; // сбросить бонусный опыт
+    }
+    CALL_3(void, __cdecl,h->GetDefaultFunc(), hero, expToAdd, oldExp);
+}
 
 // фикс вылета: нет проверки на наличие стуктуры целевого стека
 // но тут не хватает проверки на c->edi
@@ -773,7 +802,7 @@ void GameLogic(PatcherInstance* _PI)
     // Фикс Бага воскрешения командиром существ со здоровьем <=50, а не макс 5-го уровня
     _PI->WriteLoHook(0x05A881C, BattleStack_AtGettingResurrectionResistance);
 
-	// @ JackSlater
+	// © JackSlater
     // Прыжок через ProcessMessagesForTime, если скрытая битва
     _PI->WriteLoHook(0x441B25, LoHook_00441B25);
     _PI->WriteLoHook(0x441BD6, LoHook_00441BD6); // return address ->0x441BF5
@@ -828,7 +857,7 @@ void GameLogic(PatcherInstance* _PI)
     // добавляем проверку на воду: mapItem->land == 8 (и убираем проверку на лодку)
     _PI->WriteCodePatch(0x4806D9, "F743 04 08000000 752A 909090");
 
-	// @ daemon_n
+	// © daemon_n
     // фикс: посещение мифрила обновляет экран
 	_PI->WriteCodePatch(0x07060AC, "%n", 7); // удалить добавление мифрила костылём
 	_PI->WriteJmp(0x0705F42, 0x0705F7D); // пропустить изменение объекта на карте на костыльное решение
@@ -844,6 +873,13 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteCodePatch(0x4C9497, "%n", 10); // 10 nop
     _PI->WriteCodePatch(0x4C950F, "%n", 20); // 20 nop
 
+    // © daemon_n
+    // отключить выдачу опыта существа при старте игры, есои опыт даётся герою вне битвы
+    Era::RegisterHandler(OnGameEnter, "OnGameEnter");
+	// © daemon_n 
+    // Исправлению получения опыта существами, когда максимальный уровень опыта героем достигнут
+	_PI->WriteLoHook(0x04E36CE, Hero__AtGiveExperienceAfterLimit); // сохранить опыт героя, который он должен был получить
+	_PI->WriteHiHook(0x076B46D, CALL_, EXTENDED_, CDECL_, CrExpoSet_AddExpo); // добавить опыт существам
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////// Фиксы крит.крашей игры //////////////////////////
 
