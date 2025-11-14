@@ -136,14 +136,18 @@ int __stdcall New_Dlg_CustomReq_Proc(_CustomDlg_* dlg, _EventMsg_* msg)
                     itemText = (_DlgStaticTextPcx8ed_*)dlg->GetItem(19+i);
                     if (itemText)
                     {
-                        itemText->font = (int)smalfont2;
+                        itemText->SetFont(n_SmallFont);
                         itemText->color = 1;
                     }
                 }
 
                 dlg->GetItem(msg->item_id +10)->SendCommand(5, 4);
-                ((_DlgStaticTextPcx8ed_*)dlg->GetItem(msg->item_id +4))->font = (int)medfont2;
-                ((_DlgStaticTextPcx8ed_*)dlg->GetItem(msg->item_id +4))->color = 7;
+				_DlgStaticTextPcx8ed_* selectedText = (_DlgStaticTextPcx8ed_*)dlg->GetItem(msg->item_id + 4);
+                if (selectedText)
+                {
+                   selectedText->SetFont(n_MedFont);
+                   selectedText->color = 7;
+                }
                 o_Sphinx1->SelItm = msg->item_id -14;
 
                 dlg->GetItem(DIID_OK)->SetEnabled(1);

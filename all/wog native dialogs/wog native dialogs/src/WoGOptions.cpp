@@ -208,13 +208,13 @@ int __stdcall Dlg_WoG_Options_Proc(_CustomDlg_* dlg, _EventMsg_* msg)
             if (it->id == DIID_OK) { text_bar = txtresWOG->GetString(85); } 
 
             if (it->id != apdFont && apdFont != 0) {
-                ((_DlgStaticText_*)dlg->GetItem(apdFont))->font = (int)smalfont2; 
+                ((_DlgStaticText_*)dlg->GetItem(apdFont))->SetFont(n_SmallFont);
                 dlg->Redraw();
             } 
 
             if (it->id >=41 && it->id <=48) {
                 int id = it->id -41;
-                ((_DlgStaticText_*)dlg->GetItem(it->id))->font = (int)medfont2; 
+                ((_DlgStaticText_*)dlg->GetItem(it->id))->SetFont(n_MedFont);
                 text_bar = o_DlgSetup->Pages[id]->Hint;
                 apdFont = it->id;   
                 dlg->Redraw();

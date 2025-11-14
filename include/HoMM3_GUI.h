@@ -552,7 +552,7 @@ NOALIGN struct _DlgStaticText_ : public _DlgItem_
  _char_* text;
  _char_* text_mem_end;
  _dword_ field_3C;
- _ptr_ font;
+ _Fnt_* font;
  _dword_ color;
  _dword_ back_color;
  _dword_ align;
@@ -563,6 +563,18 @@ NOALIGN struct _DlgStaticText_ : public _DlgItem_
 // my 
  static inline _DlgStaticText_* Create(int x, int y, int width, int height, char* text, char* font_name, _dword_ text_color, int id, _dword_ align, int bkcolor)
   {return b_DlgStaticText_Create(x, y, width, height, text, font_name, text_color, id, align, bkcolor, 0);}
+ void inline SetFont(char* font_name)
+ {
+     if (font && (!font_name || CALL_2(int, __cdecl , 0x6197C0, font->name , font_name))) // сравниваем имена шрифтов, если таковые имеются (__strcmpi)
+     {
+         font->DerefOrDestruct();
+		 font = NULL;
+     }
+     if (!font && font_name)
+     {
+         font = _Fnt_::Load(font_name);
+     }
+ }
 };
 ////////////////////////////////////////////////////////////////////////////
 
