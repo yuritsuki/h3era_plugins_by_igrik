@@ -383,7 +383,7 @@ void __stdcall Dlg_WoG_Options_Show(HiHook* hook, int a1)
     if (ds->ButtonsStates[1] == 1) {dlg->AddItem(_DlgButton_::Create(645, 528, 64, 30, 9, bttnName, 9, 10, 0, HK_S, 0)); }  // id = 9 // сохранить
     if (ds->ButtonsStates[3] == 1) {dlg->AddItem(_DlgButton_::Create(305, 528, 64, 30, 10, bttnName, 21, 22, 0, HK_M, 0)); }  // id = 10 // мультиплеер
     if (ds->ButtonsStates[0] == 1) {dlg->AddItem(_DlgButton_::Create(715, 528, 64, 30, DIID_OK, bttnName, 0, 1, 1, HK_ENTER, 2)); } // id = 30725
-
+	if (_DlgButton_* okBttn = reinterpret_cast<_DlgButton_*>(dlg->GetItem(DIID_OK))) okBttn->SetHotKey(HK_ESC); // Esc - тоже ок
     //_DlgScroll_* wogOptScroll = _DlgScroll_::Create(26, 534, 334, 16, 11, 8, (_ptr_)Dlg_WoG_Options_Scroll, 0, 0, 0); // создать ползунок
     //dlg->AddItem(wogOptScroll);
 
