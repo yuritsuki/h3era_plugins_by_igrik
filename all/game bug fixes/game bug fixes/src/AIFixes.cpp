@@ -107,9 +107,10 @@ void AIFixes(PatcherInstance *_PI)
     _PI->WriteByte(0x41EFA6 + 2, 4);
     _PI->WriteHexPatch(0x41EFAC, "75 16"); // jnz 0x41EFC4
 
-    // + Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (баг SoD).
-    _PI->WriteLoHook(0x42C778, LoHook_FixAngelicAllianceAI1);
-    _PI->WriteLoHook(0x42C8AD, LoHook_FixAngelicAllianceAI2);
+    return;
+    //// + Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (баг SoD).
+    //_PI->WriteLoHook(0x42C778, LoHook_FixAngelicAllianceAI1);
+    //_PI->WriteLoHook(0x42C8AD, LoHook_FixAngelicAllianceAI2);
 }
 
 } // namespace AI
