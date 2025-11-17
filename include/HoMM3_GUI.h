@@ -456,7 +456,8 @@ NOALIGN struct _DlgItem_
  // normal
  inline _dword_  SendCommand(_int_ new_param, _dword_ subtype) 
   {return CALL_3(_dword_, __thiscall, 0x5FED80, this, new_param, subtype);}
-
+ inline void SetHints(const char * shortTipText, const char* fullTipText, const bool allocateMemory)
+  {return CALL_4(void, __thiscall, 0x5FEE00, this, shortTipText, fullTipText, allocateMemory);}
  // my 
  inline void  Show()  {SendCommand(5, 6);}
  inline void  Show_ButStayEnable()  {SendCommand(5, 4);}

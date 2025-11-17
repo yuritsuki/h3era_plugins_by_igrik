@@ -112,6 +112,7 @@ char* textProcS = "%s";
 #include "src\TownHeroesMeet.cpp"
 #include "src\Battle_ShowKilled.cpp"
 #include "src\ViewWorldSpells.cpp"
+#include "src\NativeDlgsImprovements.cpp"
 #endif DOP_FUNK_TO_ERA
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -201,7 +202,7 @@ int __stdcall Y_Hook_MainLoop(LoHook* h, HookContext* c)
     Battle_ShowKilled(_PI);         // показ предполагаемого количества убитых монстров при атаке и стрельбе
     Dlg_TownHeroesMeet(_PI);        // обмен героями в замке ко клавише E
     Dlg_ViewWorldScreen(_PI);       // сохранение эффектов заклинаний просмотра земли и воздуха при открытии диалога просмотра мира
-
+    NativeDlgsImprovements(_PI);    // улучшения нативных диалогов для повышения удобства пользования игрой
 #endif DOP_FUNK_TO_ERA
 
     return EXEC_DEFAULT;
