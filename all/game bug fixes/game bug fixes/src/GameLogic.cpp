@@ -673,6 +673,31 @@ char __stdcall HiHook_00441b5d(HiHook* h, _BattleStack_* attacker, _BattleStack_
     o_BattleMgr->currentStackIndex = currentStackIndex;
     return result;
 }
+// © daemon_n
+// исправление отображаемого def при разрушении зданий в городе без построенного форта
+int wogTownDemolishionType = 0;
+
+_LHF_(TownDemolishion_BeforeBuildingRebuild)
+{
+    _Town_* town = o_TownMgr->town;
+    if (town && !town->IsBuildingBuilt(7, 1))
+    {
+        wogTownDemolishionType = 1;
+        CALL_1(void, __cdecl, 0x070A999, -1); // меняем индекс на массив с префектурами (хотя этот код и работаает, но игра позднее вызывает эту же ф-цию и перезатирает результат)
+    }
+
+    return EXEC_DEFAULT;
+
+}
+void __stdcall TownDemolishion_BeforeGraphicsChange(HiHook* h, int flags)
+{
+    if (wogTownDemolishionType)
+    {
+        flags = -1; // меняем на сельскую управу
+        wogTownDemolishionType = 0;
+    }
+    CALL_1(void, __cdecl, h->GetDefaultFunc(), flags);
+}
 
 // ##############################################################################################################################
 // ##############################################################################################################################
@@ -835,6 +860,11 @@ void GameLogic(PatcherInstance* _PI)
         // Фикс Димера - герой имеет продвинутую разведку на старте
         o_HeroInfo[HID_DEEMER].second_skill_2_lvl = 1;
     }
+
+    // © daemon_n
+    // исправление отображаемого def при разрушении зданий в городе без построенного форта
+    _PI->WriteLoHook(0x70BF78, TownDemolishion_BeforeBuildingRebuild);
+    _PI->WriteHiHook(0x070AA96, CALL_, EXTENDED_, THISCALL_, TownDemolishion_BeforeGraphicsChange);
 
     // Баг? _BattleStack_::MeleeAtack (контратака) - фикс сайда
     _PI->WriteHiHook(0x441b5d, CALL_, EXTENDED_, THISCALL_, HiHook_00441b5d);
