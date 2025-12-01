@@ -680,7 +680,7 @@ int wogTownDemolishionType = 0;
 _LHF_(TownDemolishion_BeforeBuildingRebuild)
 {
     _Town_* town = o_TownMgr->town;
-    if (town && !town->IsBuildingBuilt(7, 1))
+    if (town && !town->IsBuildingBuilt(7, 0))
     {
         wogTownDemolishionType = 1;
         CALL_1(void, __cdecl, 0x070A999, -1); // меняем индекс на массив с префектурами (хотя этот код и работаает, но игра позднее вызывает эту же ф-цию и перезатирает результат)
