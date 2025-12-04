@@ -240,9 +240,13 @@ _LHF_(Y_Dlg_BattleResults_IgnoreClones)
     return EXEC_DEFAULT;
 }
 
-
-
-
+// © daemon_n
+// Добавить мифрил игроку при вводе чит-кода на ресурсы
+_LHF_(AdvMgr_ApplyResourceCheat)
+{
+    IntAt(0x27F9A00 + o_ActivePlayer->id * 4) += 100;
+	return EXEC_DEFAULT;
+}
 /**
 * Фикс бага встречи одного и того-же героя: игрой в редких случаях перезатирается ecx
 * в дополнение: запрещаем встречу, если номера у героев одинаковые
@@ -748,7 +752,9 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteDword(0x4026FA, 360); // [чит wogeyeofsauron(ориг = 200)]
      // радус закрытия всей карты
     _PI->WriteDword(0x402751, 360); //[чит wogeyeofsauron(ориг = 200)]
-
+    // © daemon_n
+	// Добавить мифрил игроку при вводе чит-кода на ресурсы
+    _PI->WriteLoHook(0x04027FE, AdvMgr_ApplyResourceCheat);
     // © daemon_n
     // при доступе к рынку в окне союзника без своих собственных (возможно через торговца артефактов)
     // курс делится на 0, что приводит к крашу при клику на ресурсах и артефактах
