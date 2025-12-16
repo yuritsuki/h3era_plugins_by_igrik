@@ -52,36 +52,7 @@ void __cdecl Y_WoG_UnMixedPos_Fix(HiHook* hook, _dword_ x, _dword_ y, _dword_ z,
     return;
 }
 
-// © daemon_n
-// отключить выдачу опыта существа при старте игры, есои опыт даётся герою вне битвы
-_ERH_(OnGameEnter)
-{
-    // сбрасываем тип источника выдаваемого опыта на "не битва"
-    o_CreExpoCombatFlag = 0;
-}
 
-// © daemon_n 
-// Исправлению получения опыта существами, когда максимальный уровень опыта героем достигнут
-int crexpoBonusExp = 0;
-_LHF_(Hero__AtGiveExperienceAfterLimit)
-{
-    // если опыт из битвы и мы превысили лимит
-    if (o_CreExpoCombatFlag && c->edx > c->esi)
-    {
-        crexpoBonusExp = IntAt(c->ebp + 0x8); // добавить псевдоопыт
-    }
-
-    return EXEC_DEFAULT;
-}
-void __stdcall CrExpoSet_AddExpo(HiHook* h, _Hero_* hero, int expToAdd, const int oldExp)
-{
-    if (crexpoBonusExp)
-    {
-        expToAdd += crexpoBonusExp; // добавить недостающий опыт
-		crexpoBonusExp = 0; // сбросить бонусный опыт
-    }
-    CALL_3(void, __cdecl,h->GetDefaultFunc(), hero, expToAdd, oldExp);
-}
 
 // фикс вылета: нет проверки на наличие стуктуры целевого стека
 // но тут не хватает проверки на c->edi
@@ -744,9 +715,7 @@ void GameLogic(PatcherInstance* _PI)
     // - если стоит опция "не показывать передвижения противника"
     _PI->WriteByte(0x41DBE8 +1, 0x5C);
     
-    // [центрируем текст названия города по вертикали в окне города(id 149)]
-    _PI->WriteByte(0x5C5C1B, 4);
-    
+
     // радус открытия всей карты
     _PI->WriteDword(0x4F4B57, 320); // [чит - меню(ориг = 180)]
     _PI->WriteDword(0x4026FA, 360); // [чит wogeyeofsauron(ориг = 200)]
@@ -774,12 +743,6 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteDword(0x073A847 + 3, MAX_MON_ID + 1); // увечиличить макс id при проверке на выход из границы
     _PI->WriteDword(0x073A850 + 3, MAX_MON_ID); // увеличить макс id при выходе за границы
 
-    // © daemon_n
-    // Ошибка бонуса опыта существ для члена "модификатор", где имеем некорректный тип данных (знаковый) для структуры:
-    // Суть в подмене типа копирования символов со знакового на беззнаковое ( MOVSX -> MOVZX )
-    _PI->WriteByte(0x71C7A7 +1, 0xB6);
-    _PI->WriteByte(0x71C7B3 +1, 0xB6);
-    _PI->WriteByte(0x71C7D2 +1, 0xB6);
 
     // © daemon_n
     // WoG баг, при котором, если защита отряда из оригинальной ф-ции = 0
@@ -909,13 +872,7 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteCodePatch(0x4C9497, "%n", 10); // 10 nop
     _PI->WriteCodePatch(0x4C950F, "%n", 20); // 20 nop
 
-    // © daemon_n
-    // отключить выдачу опыта существа при старте игры, есои опыт даётся герою вне битвы
-    Era::RegisterHandler(OnGameEnter, "OnGameEnter");
-	// © daemon_n 
-    // Исправлению получения опыта существами, когда максимальный уровень опыта героем достигнут
-	_PI->WriteLoHook(0x04E36CE, Hero__AtGiveExperienceAfterLimit); // сохранить опыт героя, который он должен был получить
-	_PI->WriteHiHook(0x076B46D, CALL_, EXTENDED_, CDECL_, CrExpoSet_AddExpo); // добавить опыт существам
+
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////// Фиксы крит.крашей игры //////////////////////////
 

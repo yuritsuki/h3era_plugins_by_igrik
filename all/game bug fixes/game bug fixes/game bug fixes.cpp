@@ -21,6 +21,7 @@ char* BATTLE_DLG_NAME = "battle_dlg.daemon.plugin";
 #include "src\SammonCreatures.cpp"
 #include "src\GameLogic.cpp"
 #include "src\GamePatches.cpp"
+#include "src\CrExpoFixes.cpp"
 #include "src\ScoutingRadiusFixes.cpp"
 #include "src\HeroMovementFixes.cpp"
 #include "src\AIFixes.cpp"
@@ -40,6 +41,7 @@ void HooksInit(Patcher* _P, PatcherInstance* _PI)
     WOG_SammonCreatures(_PI);
     GameLogic(_PI); 
     SetPathes(_PI);
+    CrExpo::CrExpoFixes(_PI);
     scouting::ScoutingRadiusFixes(_PI);
     movement::HeroMovementFixes(_PI);
     AI::AIFixes(_PI);
@@ -61,11 +63,11 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
         if (!bug_fixes_On)
         {
             bug_fixes_On = true;    
-            constexpr auto PLUGIN_NAME = "game bug fixes extended";
+            constexpr LPSTR PLUGIN_NAME = "game bug fixes extended";
             Era::ConnectEra(hModule, PLUGIN_NAME);
 
             _P = GetPatcher();
-            _PI = _P->CreateInstance((char*)PLUGIN_NAME);
+            _PI = _P->CreateInstance(PLUGIN_NAME);
 
 
             if (Era::PluginExists("typhon"))
