@@ -135,9 +135,7 @@ _LHF_(WoG_InTowmArmyMerge_VisitorIterator)
 }
 _LHF_(WoG_InTowmArmyMerge_ExperienceCreatorIterator)
 {
-
     INT64 resultExp = 0;
-    INT totalCreatures = IntAt(c->ebp - 0x14);
 
     _Army_ &expArmy = *reinterpret_cast<_Army_ *>(c->ebp - 0xC8);
 
@@ -146,14 +144,15 @@ _LHF_(WoG_InTowmArmyMerge_ExperienceCreatorIterator)
 
     for (size_t i = 0; i < 14; i++)
     {
-        if (const int slotBit = slotsMerged & (1 << i))
+        if (slotsMerged & (1 << i))
         {
-            // сложение общего опыта, основывываясь на начальных значениях
+            // сложение общего опыта, основываясь на начальных значениях
             resultExp += static_cast<INT64>(armySlots[i].experience) * armySlots[i].number;
         }
     }
 
     // установка итогового опыта делением на итоговое количество существ
+    const int totalCreatures = IntAt(c->ebp - 0x14);
     c->eax = totalCreatures ? static_cast<int>(resultExp / totalCreatures) : 0;
 
     c->return_address = 0x0759A2E;
