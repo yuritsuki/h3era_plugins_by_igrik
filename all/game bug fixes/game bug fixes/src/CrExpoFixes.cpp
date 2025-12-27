@@ -106,6 +106,47 @@ struct ArmySlotExperience
     int experience;
 } armySlots[14];
 
+bool isDebugMode = false;
+void DebugArmy(_Army_ *army, const char *armyName)
+{
+    std::string msg = armyName;
+    msg += "\n\n\n";
+    for (int i = 0; i < 7; i++)
+    {
+        // msg += "Slot ";
+        if (army->type[i] > -1)
+        {
+            msg += std::to_string(i);
+            msg += "{~>CPRSMALL.def:0:";
+            msg += std::to_string(army->type[i] + 2) + " valign=bottom}";
+            msg += " Count=";
+            msg += std::to_string(army->count[i]);
+            msg += "\n\n";
+        }
+    }
+    o_MsgBox((char *)msg.c_str());
+}
+char __stdcall H3Army__Merge(HiHook *h, _Army_ *_this, _Army_ *army)
+{
+    if (isDebugMode)
+    {
+        DebugArmy(army, "townArmy Army");
+        DebugArmy(_this, "heroArmy Army");
+        isDebugMode = false;
+    }
+    char result = CALL_2(char, __thiscall, h->GetDefaultFunc(), _this, army);
+    return result;
+}
+
+void __stdcall H3Army__Arrange(HiHook *h, _Army_ *_this)
+{
+}
+
+_LHF_(WoG_InTowmArmyMerge_Before)
+{
+    isDebugMode = true;
+    return EXEC_DEFAULT;
+}
 _LHF_(WoG_InTowmArmyMerge_GuardIterator)
 {
     const int slotId = c->eax;
@@ -205,6 +246,15 @@ void CrExpoFixes(PatcherInstance *_PI)
     _PI->WriteLoHook(0x0759749, WoG_InTowmArmyMerge_GuardIterator);
     _PI->WriteLoHook(0x0759870, WoG_InTowmArmyMerge_VisitorIterator);
     _PI->WriteLoHook(0x0759A24, WoG_InTowmArmyMerge_ExperienceCreatorIterator);
+
+    // !BUG!
+    // тестируем отключение сортировки существ в ИИ Армиях, чтобы не ломать опыт
+    if (false)
+    {
+        _PI->WriteLoHook(0x0759A9A, WoG_InTowmArmyMerge_Before);
+        _PI->WriteHiHook(0x044B2F0, SPLICE_, EXTENDED_, THISCALL_, H3Army__Merge);
+        _PI->WriteHiHook(0x042D8E0, SPLICE_, EXTENDED_, THISCALL_, H3Army__Arrange);
+    }
 
     // © daemon_n
     // исправление расчёта опыта при перемещении отряда существ из слота в слот
