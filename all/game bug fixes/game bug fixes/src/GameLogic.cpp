@@ -836,7 +836,7 @@ void GameLogic(PatcherInstance* _PI)
     _PI->WriteHiHook(0x070AA96, CALL_, EXTENDED_, THISCALL_, TownDemolishion_BeforeGraphicsChange);
 
     // Баг? _BattleStack_::MeleeAtack (контратака) - фикс сайда
-    _PI->WriteHiHook(0x441b5d, CALL_, EXTENDED_, THISCALL_, HiHook_00441b5d);
+    //_PI->WriteHiHook(0x441b5d, CALL_, EXTENDED_, THISCALL_, HiHook_00441b5d);
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////// Фиксы раздвоения героя //////////////////////////
 
