@@ -173,11 +173,24 @@ _LHF_(WoG_CombatStart_SummonNPC)
     }
     return EXEC_DEFAULT;
 }
+
+_ERH_(OnAfterCreateWindow)
+{
+    // @ daemon_n
+    // фикс WoG бага, когда командиры призывают боевые машины в банках существ
+    constexpr LPCSTR fixKey = "gbfe.disable_fix.npc.creature_banks_war_machines";
+    if (atoi(Era::tr(fixKey)) == 0)
+    {
+        _PI->WriteLoHook(0x76B889, WoG_CombatStart_SummonNPC); // tent
+        _PI->WriteLoHook(0x76B97B, WoG_CombatStart_SummonNPC); // ballista
+    }
+}
+
 // @daemon_n
 // фикс: сообщение о посещении кристалов командиров показываются до их удаления с карты
 int wogObjectType = 0;
 int wogIsHuman = 0;
-_LHF_(WoG_BeforMapItemVisit)
+_LHF_(WoG_BeforeMapItemVisit)
 {
     wogObjectType = IntAt(c->ebp - 0x14);
     wogIsHuman = IntAt(c->ebp - 0x4);
@@ -195,23 +208,23 @@ void __stdcall AdvMgr_Chest_Visit(HiHook *h, _AdvMgr_ *AvdManager, _Hero_ *Hero,
 
     CALL_5(void, __thiscall, h->GetDefaultFunc(), AvdManager, Hero, mapItem, PosMixed, isHuman);
 }
-//void __stdcall AdvMgr_Resource_Visit(HiHook *h, _Hero_ *Hero, int resType, int resCount)
+// void __stdcall AdvMgr_Resource_Visit(HiHook *h, _Hero_ *Hero, int resType, int resCount)
 //{
-//    if (wogObjectType == 30)
-//    {
-//        struct PlayersMithril
-//        {
-//            int mithril[8];
-//        };
-//        if (Hero->owner_id >= 0 && Hero->owner_id <= 7)
-//        {
-//           // reinterpret_cast<PlayersMithril *>(0x27F9A00)->mithril[Hero->owner_id] += resCount;
-//            //   CALL_3(void, __cdecl, 0x07708DE, Hero, resType, resCount);
-//            wogObjectType = 0;
-//        }
-//    }
-//    CALL_3(void, __thiscall, h->GetDefaultFunc(), Hero, resType, resCount);
-//}
+//     if (wogObjectType == 30)
+//     {
+//         struct PlayersMithril
+//         {
+//             int mithril[8];
+//         };
+//         if (Hero->owner_id >= 0 && Hero->owner_id <= 7)
+//         {
+//            // reinterpret_cast<PlayersMithril *>(0x27F9A00)->mithril[Hero->owner_id] += resCount;
+//             //   CALL_3(void, __cdecl, 0x07708DE, Hero, resType, resCount);
+//             wogObjectType = 0;
+//         }
+//     }
+//     CALL_3(void, __thiscall, h->GetDefaultFunc(), Hero, resType, resCount);
+// }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -266,18 +279,15 @@ void Npc(PatcherInstance *_PI)
     _PI->WriteByte(0x7695A0, 1); //[Change the number to check the skill level at 0x76959C cmp     dword ptr
                                  //[eax+edx*4+38h], 2 / jg      short loc_7695E3]
     _PI->WriteLoHook(0x076949E, NPC_CalculatePrimarySkills);
-    // @ daemon_n
-    // фикс WoG бага, когда командиры призывают боевые машины в банках существ
-    _PI->WriteLoHook(0x76B889, WoG_CombatStart_SummonNPC); // tent
-    _PI->WriteLoHook(0x76B97B, WoG_CombatStart_SummonNPC); // ballista
+
+    Era::RegisterHandler(OnAfterCreateWindow, "OnAfterCreateWindow");
 
     // @daemon_n
     // фикс: сообщение о посещении кристалов командиров показываются до их удаления с карты
-    _PI->WriteLoHook(0x0705FDD, WoG_BeforMapItemVisit);
+    _PI->WriteLoHook(0x0705FDD, WoG_BeforeMapItemVisit);
     _PI->WriteHiHook(0x04A9F93, CALL_, EXTENDED_, THISCALL_, AdvMgr_Chest_Visit);
     // пропуск оригинальной механики
     _PI->WriteJmp(0x0706059, 0x0706070);
-
 
     //
     //   // увеличение количества кристаллов до 6;
