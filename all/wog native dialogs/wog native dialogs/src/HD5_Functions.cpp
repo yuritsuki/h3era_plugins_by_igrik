@@ -58,8 +58,14 @@ int __stdcall Y_Lo_Dlg_HeroLvlUp_Create(LoHook* h, HookContext* c)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // быстро закончить бой по Q
-_int_ QuickBattle_SAVE, isNeedRestore;
-_int_ saveManaHero[2][2];
+struct QuickBattleInfo
+{
+    _int_ QuickBattle = 0;
+    _int_ BattleAutoSpells = 0;
+	_int_ isNeedRestore = 0;
+} quickBattleInfo;
+QuickBattleInfo QuickBattle_SAVE;
+//_int_ saveManaHero[2][2];
 
 _int_ __stdcall Y_BATTLE_Proc(HiHook* hook, _BattleMgr_* bm, _EventMsg_* msg)
 {
@@ -69,29 +75,15 @@ _int_ __stdcall Y_BATTLE_Proc(HiHook* hook, _BattleMgr_* bm, _EventMsg_* msg)
 
                 if ( b_MsgBox( json_Combat[0], MBX_OKCANCEL) ) {                    
 
-                    saveManaHero[0][0] = 0; // кол-во маны левого героя
-                    saveManaHero[1][0] = 0; // кол-во маны правого героя
-                    saveManaHero[0][1] = -1; // id левого героя
-                    saveManaHero[1][1] = -1; // id правого героя
-
-                    if ( bm->hero[0] ) {
-                        saveManaHero[0][0] = bm->hero[0]->spell_points;
-                        saveManaHero[0][1] = bm->hero[0]->id;
-                        bm->hero[0]->spell_points = 0;
-                    }
-
-                    if ( bm->hero[1] ) {
-                        saveManaHero[1][0] = bm->hero[1]->spell_points;
-                        saveManaHero[1][1] = bm->hero[1]->id;
-                        bm->hero[1]->spell_points = 0;
-                    }
 
                     // очистить массив теней курсора
                     CALL_0(int, __cdecl, 0x493EF0);
                     
-                    QuickBattle_SAVE = o_QuickBattle;
-                    isNeedRestore = 1;
+                    quickBattleInfo.QuickBattle = o_QuickBattle;
                     o_QuickBattle = 1;
+                    quickBattleInfo.BattleAutoSpells = IntAt(0x06987E8); // g_BattleAutoSpells
+                    IntAt(0x06987E8) = false; // отключить авто-каст заклинаний в бою
+					quickBattleInfo.isNeedRestore = 1;
                     return 1;
                 } 
             }
@@ -102,24 +94,11 @@ _int_ __stdcall Y_BATTLE_Proc(HiHook* hook, _BattleMgr_* bm, _EventMsg_* msg)
 
 int __stdcall Y_EndBattle(LoHook* h, HookContext* c)
 {
-    if ( isNeedRestore ) {
+    if (quickBattleInfo.isNeedRestore ) {
 
-        if (saveManaHero[0][1] > -1 && saveManaHero[0][1] < 256) {
-            o_GameMgr->GetHero(saveManaHero[0][1])->spell_points = saveManaHero[0][0];
-        }
-
-        if (saveManaHero[1][1] > -1 && saveManaHero[1][1] < 256) {
-            o_GameMgr->GetHero(saveManaHero[1][1])->spell_points = saveManaHero[1][0];
-        }
-
-        saveManaHero[0][0] = 0; // кол-во маны левого героя
-        saveManaHero[1][0] = 0; // кол-во маны правого героя
-        saveManaHero[0][1] = -1; // id левого героя
-        saveManaHero[1][1] = -1; // id правого героя
-        
-        o_QuickBattle = QuickBattle_SAVE;
-        QuickBattle_SAVE = 0;
-        isNeedRestore = 0;
+        o_QuickBattle = quickBattleInfo.QuickBattle;
+        IntAt(0x06987E8) = quickBattleInfo.BattleAutoSpells; // восстановить авто-каст заклинаний в бою
+        quickBattleInfo = {};
     }
     return EXEC_DEFAULT;
 } 
