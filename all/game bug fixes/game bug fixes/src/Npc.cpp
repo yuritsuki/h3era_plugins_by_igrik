@@ -118,7 +118,7 @@ _LHF_(gem_Brute_AddGold)
 
     return EXEC_DEFAULT;
 }
-// отображение золота Зверя в окошке прсомотра информации после битвы
+// отображение золота Зверя в окошке просмотра информации после битвы
 _ERH_(OnAfterBattleUniversal)
 {
     if (bruteGoldAdded && o_MeID == o_ActivePlayerID)
@@ -129,7 +129,7 @@ _ERH_(OnAfterBattleUniversal)
     }
 }
 /// исправления Slavas's Ring
-// @daemon_n
+// @ daemon_n
 // корректировка количества заклинаний Командира с кольцом Славы
 _LHF_(NPC_InitInCombat)
 {

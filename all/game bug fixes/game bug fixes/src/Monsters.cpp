@@ -17,7 +17,7 @@ int __stdcall setActStack(LoHook *h, HookContext *c)
     }
     // если выстрелов у циклопов больше нет
     // то забираем флаг "катапульта"
-    if (mon->creature_id == 94 || mon->creature_id == 95)
+    if (mon->creature_id == CID_CYCLOPS || mon->creature_id == CID_CYCLOPS_KING)
     {
         if (mon->creature.shots < 1)
         {
@@ -541,6 +541,26 @@ _LHF_(WoG__WereWolfAction)
 
     return EXEC_DEFAULT;
 }
+// © daemon_n
+// отключение сообщения с нанесением урона при его блокировании Драколичами или прочими абилками
+const _BattleStack_ *blockingStack = nullptr;
+_LHF_(CrExpBon_StackBlock_DracolichBlock)
+{
+    blockingStack = *reinterpret_cast<const _BattleStack_ **>(c->ebp + 0x8);
+    return EXEC_DEFAULT;
+}
+void __stdcall BattleMgr_AttackingLogMessage(HiHook *h, _BattleMgr_ *_this, char *AttackerName, int attackerCount,
+                                             int damage, _BattleStack_ *target, int killedCount)
+{
+
+    if (blockingStack && target == blockingStack)
+    {
+        blockingStack = nullptr;
+        return;
+    }
+    CALL_6(void, __thiscall, h->GetDefaultFunc(), _this, AttackerName, attackerCount, damage, target, killedCount);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -682,6 +702,10 @@ void Monsters(PatcherInstance *_PI)
     // © daemon_n
     // удаляем лишнюю логику при скрытой битве
     _PI->WriteLoHook(0x0767644, WoG__WereWolfAction);
+    // © daemon_n
+    // отключение сообщения с нанесением урона при его блокировании Драколичами или прочими абилками
+    _PI->WriteLoHook(0x071C6CF, CrExpBon_StackBlock_DracolichBlock);
+    _PI->WriteHiHook(0x0469670, SPLICE_, EXTENDED_, THISCALL_, BattleMgr_AttackingLogMessage);
     // патчи без Tiphon.dll
     if (!TIPHON)
     {

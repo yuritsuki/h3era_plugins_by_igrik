@@ -694,14 +694,14 @@ void Graphics(PatcherInstance *_PI)
     _PI->WriteByte(0x71F3FC, 0xB6);
     _PI->WriteByte(0x71F5BA, 0xB6);
     _PI->WriteByte(0x71F5D3, 0xB6);
-    _PI->WriteByte(0x723657, 0xB6);
-    _PI->WriteByte(0x723219, 0xB6);
-    _PI->WriteByte(0x7238D8, 0xB6);
     _PI->WriteByte(0x7217BB, 0xB6);
-    _PI->WriteByte(0x723CBD, 0xB6);
     _PI->WriteByte(0x721B03, 0xB6);
     _PI->WriteByte(0x722792, 0xB6);
+    _PI->WriteByte(0x723219, 0xB6);
+    _PI->WriteByte(0x723657, 0xB6);
+    _PI->WriteByte(0x7238D8, 0xB6);
     _PI->WriteByte(0x723ACB, 0xB6);
+    _PI->WriteByte(0x723CBD, 0xB6);
     _PI->WriteByte(0x723F1C, 0xB6);
 
     // исправление включения тени, которое не выполняется при автобитве
