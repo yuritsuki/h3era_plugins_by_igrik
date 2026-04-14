@@ -15,17 +15,11 @@ int __stdcall setActStack(LoHook *h, HookContext *c)
             return NO_EXEC_DEFAULT;
         }
     }
-    // если выстрелов у циклопов больше нет
-    // то забираем флаг "катапульта"
-    if (mon->creature_id == CID_CYCLOPS || mon->creature_id == CID_CYCLOPS_KING)
+    // если выстрелов у атакующих стену больше нет
+    else if (mon->creature.destroyWalls && mon->creature.shots < 1)
     {
-        if (mon->creature.shots < 1)
-        {
-            if (mon->creature.flags & 32)
-            {
-                mon->creature.flags -= 32;
-            }
-        }
+        // то забираем флаг "катапульта"
+        mon->creature.destroyWalls = false;
     }
     return EXEC_DEFAULT;
 }
@@ -191,41 +185,23 @@ int __cdecl ERM_Fix_EA_E(HiHook *hook, _BattleStack_ *stack)
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// #define Wog_FOH_Monstr (*(int*)0x27718CC)
-#define WoG_CreatureUpgradeTable (*(int *)0x724A95)
-
 // Решаем проблему когда бонусы специалистов не считаются Супер существам
+// обновлено: теперь поддерживается бесконечная цепочка улучшений существ, а не только 7 уровней
 int __stdcall Y_FixWoG_GetCreatureGrade(LoHook *h, HookContext *c)
 {
-    int ID = *(int *)(c->ebp + 8);
-    int mon_id = c->ecx;
-    int mon_idGr = *(int *)(WoG_CreatureUpgradeTable + mon_id * 4);
+    const int creatureId = IntAt(c->ebp + 8);
+    int heroCreatureSpec = c->ecx;
 
-    if (mon_idGr == -2)
+    while (heroCreatureSpec >= 0)
     {
-        return EXEC_DEFAULT;
+        heroCreatureSpec = CALL_1(int, _cdecl, 0x0724A5F, heroCreatureSpec); // wog function to get creature grade
+        if (heroCreatureSpec == creatureId)
+        {
+            c->eax = heroCreatureSpec;
+            c->return_address = 0x04E64FF;
+            return NO_EXEC_DEFAULT;
+        }
     }
-    else if (mon_idGr == -1)
-    {
-        mon_idGr = CALL_1(int, __fastcall, 0x47AAD0, mon_id);
-    }
-
-    int mon_idGr2 = *(int *)(WoG_CreatureUpgradeTable + mon_idGr * 4);
-
-    if (mon_idGr2 == -2)
-    {
-        return EXEC_DEFAULT;
-    }
-    else if (mon_idGr2 == -1)
-    {
-        mon_idGr = CALL_1(int, __fastcall, 0x47AAD0, mon_id);
-    }
-
-    if (ID == mon_idGr2)
-    {
-        c->ecx = mon_idGr;
-    }
-
     return EXEC_DEFAULT;
 }
 

@@ -738,6 +738,35 @@ _ERH_(OnGameLeave)
     ByteAt(0x06AAAC4) = false;
 }
 
+// © daemon_n
+// отключение сброса эффекта берсеркера, если он был получен лишь в процессе атаки, а не на начало хода
+Patch *skipMeleeBerserkReset = nullptr;
+Patch *skipRangeBerserkReset = nullptr;
+void __stdcall BattleStack_PrepareMelee(HiHook *h, _BattleStack_ *attacker, int direction)
+{
+
+    const BOOL noBerserkBeforeAttack = attacker->active_spell_duration[SPL_BERSERK] == 0;
+    if (noBerserkBeforeAttack)
+        skipMeleeBerserkReset->Apply();
+
+    CALL_2(void, __thiscall, h->GetDefaultFunc(), attacker, direction);
+
+    if (noBerserkBeforeAttack)
+        skipMeleeBerserkReset->Undo();
+}
+void __stdcall BattleStack_PrepareShoot(HiHook *h, _BattleStack_ *attacker)
+{
+
+    const BOOL noBerserkBeforeAttack = attacker->active_spell_duration[SPL_BERSERK] == 0;
+    if (noBerserkBeforeAttack)
+        skipRangeBerserkReset->Apply();
+
+    CALL_1(void, __thiscall, h->GetDefaultFunc(), attacker);
+
+    if (noBerserkBeforeAttack)
+        skipRangeBerserkReset->Undo();
+}
+
 // ##############################################################################################################################
 // ##############################################################################################################################
 // ##############################################################################################################################
@@ -1007,4 +1036,12 @@ void GameLogic(PatcherInstance *_PI)
     _PI->WriteByte(0x4F4ED2 + 1, 100);
     // исправление чита "построить все здания". На сбрасывается флаг введённого чита
     Era::RegisterHandler(OnGameLeave, "OnGameLeave");
+
+    // © daemon_n
+    // отключение сброса эффекта берсеркера, если он был получен лишь в процессе атаки, а не на начало хода
+    // исправление имеет смысл для срабатывания берсерка при получении эффекта в качестве ответного удара/выстрела;
+    skipMeleeBerserkReset = _PI->WriteJmp(0x0441C75, 0x0441C7E);
+    skipRangeBerserkReset = _PI->WriteJmp(0x0440017, 0x0440020);
+    _PI->WriteHiHook(0x4419D0, SPLICE_, EXTENDED_, THISCALL_, BattleStack_PrepareMelee);
+    _PI->WriteHiHook(0x43FE80, SPLICE_, EXTENDED_, THISCALL_, BattleStack_PrepareShoot);
 }
