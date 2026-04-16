@@ -36,6 +36,25 @@ _int_ __stdcall Y_AIMgr_Stack_MinRoundToReachHex(HiHook *hook, _dword_ this_, _B
     return CALL_3(_int_, __thiscall, hook->GetDefaultFunc(), this_, stack, a3);
 }
 
+// © daemon_n
+// фикс бага WoG -- для ИИ не был добавлен рассчёт кавалерийского бонуса для новых существ и SE:
+_LHF_(FixAI_CavalryBonus) // 0x0436200
+{
+    const int atkStack = c->ecx; // поместим нападающий стек в ebx для ф-ции ниже
+
+    int result = reinterpret_cast<_BattleStack_ *>(c->ecx)->creature_id;
+    __asm {
+        mov ebx, atkStack // attacker
+        mov edi, 0 // второй аргумент
+        mov eax, 0x075D7F5 // вызов ф-ции вог, на случай, если кто хочет её хукнуть
+        call eax
+        mov result, eax
+    }
+    c->ecx = result;               // во время возврата должен быть уже id существа, а не stack*
+    c->return_address = 0x0436208; // возвращаем "Чемпиона" для последующей проверки
+    return NO_EXEC_DEFAULT;
+}
+
 // Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (1).
 int __stdcall LoHook_FixAngelicAllianceAI1(LoHook *h, HookContext *c)
 {
@@ -106,6 +125,10 @@ void AIFixes(PatcherInstance *_PI)
     // Исправляем баг SoD: ИИ считал, что облако личей не задевает только нежить.
     _PI->WriteByte(0x41EFA6 + 2, 4);
     _PI->WriteHexPatch(0x41EFAC, "75 16"); // jnz 0x41EFC4
+
+    // © daemon_n
+    // фикс бага WoG -- для ИИ не был добавлен рассчёт кавалерийского бонуса для новых существ и SE:
+    _PI->WriteLoHook(0x0436200, FixAI_CavalryBonus);
 
     return;
     //// + Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (баг SoD).
