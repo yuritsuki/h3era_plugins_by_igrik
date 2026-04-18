@@ -1361,12 +1361,6 @@ NOALIGN struct _BattleStack_ : _Struct_  // размер 0x548 = 1352 байта
   return CALL_5(_int_, __thiscall, 0x4963C0, o_BattleMgr, spell_anim_id, this, 100, is_show_damage);
  } 
 
-  // проиграть анимацию заклинания на активном стеке (почему их 2 функции?)
- inline _byte_ PlayMagicAnimation2(_int_ spell_anim_id, _int_ is_show_damage = 0) 
- {
-    return CALL_3(_byte_, __thiscall, 0x468570, o_BattleMgr, spell_anim_id, is_show_damage);
- } 
-
  // Проиграть анимацию самого стека 
   inline _byte_ PlayStackAnimation(_int_ anim_id, _int_ is_restore_state)
  {
@@ -1555,6 +1549,11 @@ inline _byte_ Move(_int_ gex_id)
      default:
        return -1;
    }
+ }
+
+ inline char CanStackReceiveSpell( const int spell) const
+ {
+     return CALL_2(char, __fastcall, 0x4477A0, spell,this);
  }
 
  // WOG ФУНКЦИИ 
@@ -2262,7 +2261,12 @@ NOALIGN struct _BattleMgr_ : _Struct_
    {
      return TRUE;
    }
- } 
+ }
+ // проиграть анимацию заклинания на всех стеках и применить заклинания 
+ inline _byte_ PlayMagicAnimation(_int_ spell_anim_id, _int_ is_show_damage = 0)
+ {
+     return CALL_3(_byte_, __thiscall, 0x468570, this, spell_anim_id, is_show_damage);
+ }
 };
 
 // * how h3combatmonster is represented during quick combat
