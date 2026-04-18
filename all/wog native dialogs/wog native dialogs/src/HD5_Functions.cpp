@@ -79,11 +79,14 @@ _int_ __stdcall Y_BATTLE_Proc(HiHook* hook, _BattleMgr_* bm, _EventMsg_* msg)
                     // очистить массив теней курсора
                     CALL_0(int, __cdecl, 0x493EF0);
                     
-                    quickBattleInfo.QuickBattle = o_QuickBattle;
-                    o_QuickBattle = 1;
-                    quickBattleInfo.BattleAutoSpells = IntAt(0x06987E8); // g_BattleAutoSpells
+                    if (!quickBattleInfo.isNeedRestore)
+                    {
+                        quickBattleInfo.QuickBattle = o_QuickBattle;
+                        quickBattleInfo.BattleAutoSpells = IntAt(0x06987E8); // g_BattleAutoSpells
+                        quickBattleInfo.isNeedRestore = true;
+                    }
+                    o_QuickBattle = true;
                     IntAt(0x06987E8) = false; // отключить авто-каст заклинаний в бою
-					quickBattleInfo.isNeedRestore = 1;
                     return 1;
                 } 
             }
