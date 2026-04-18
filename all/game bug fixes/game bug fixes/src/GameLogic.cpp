@@ -742,29 +742,273 @@ _ERH_(OnGameLeave)
 // отключение сброса эффекта берсеркера, если он был получен лишь в процессе атаки, а не на начало хода
 Patch *skipMeleeBerserkReset = nullptr;
 Patch *skipRangeBerserkReset = nullptr;
+_BattleStack_ *combatActionAttacker = nullptr;
+_BattleStack_ *afterSorceressAbilityTarget = nullptr;
+_BattleStack_ *afterHellSteedAbilityTarget = nullptr;
+_BattleStack_ *afterAnyAttackAbilityTarget = nullptr;
+
 void __stdcall BattleStack_PrepareMelee(HiHook *h, _BattleStack_ *attacker, int direction)
 {
-
     const BOOL noBerserkBeforeAttack = attacker->active_spell_duration[SPL_BERSERK] == 0;
     if (noBerserkBeforeAttack)
         skipMeleeBerserkReset->Apply();
+    combatActionAttacker = attacker;
 
     CALL_2(void, __thiscall, h->GetDefaultFunc(), attacker, direction);
 
     if (noBerserkBeforeAttack)
         skipMeleeBerserkReset->Undo();
+    combatActionAttacker = nullptr;
+    afterSorceressAbilityTarget = nullptr;
+    afterHellSteedAbilityTarget = nullptr;
+    afterAnyAttackAbilityTarget = nullptr;
 }
 void __stdcall BattleStack_PrepareShoot(HiHook *h, _BattleStack_ *attacker)
 {
-
     const BOOL noBerserkBeforeAttack = attacker->active_spell_duration[SPL_BERSERK] == 0;
     if (noBerserkBeforeAttack)
         skipRangeBerserkReset->Apply();
+    combatActionAttacker = attacker;
 
     CALL_1(void, __thiscall, h->GetDefaultFunc(), attacker);
 
     if (noBerserkBeforeAttack)
         skipRangeBerserkReset->Undo();
+
+    combatActionAttacker = nullptr;
+    afterSorceressAbilityTarget = nullptr;
+    afterHellSteedAbilityTarget = nullptr;
+    afterAnyAttackAbilityTarget = nullptr;
+}
+
+struct CreatureSpellData
+{
+    const eSpell spellID = eSpell::NONE;
+    const int chance = 0;
+    static constexpr int MaxSpells = 16;
+};
+struct
+{
+    static constexpr CreatureSpellData basedOnCreatureAmountSpell[4][CreatureSpellData::MaxSpells] = {
+        {
+            {eSpell::WEAKNESS, 25},
+            {eSpell::DISRUPTING_RAY, 25},
+            {eSpell::MISFORTUNE, 25},
+            {eSpell::DISEASE, 25},
+            {eSpell::NONE, 0},
+        },
+        {
+
+            {eSpell::SLOW, 20},
+            {eSpell::CURSE, 20},
+            {eSpell::DRAGONFLY_DISPEL, 20},
+            {eSpell::MISFORTUNE, 10},
+            {eSpell::DISRUPTING_RAY, 10},
+            {eSpell::DISEASE, 10},
+            {eSpell::WEAKNESS, 10},
+            {eSpell::NONE, 0}
+
+        },
+        {
+            {eSpell::POISON, 15},
+            {eSpell::SORROW, 15},
+            {eSpell::ACID_BREATH, 15},
+            {eSpell::FORGETFULNESS, 15},
+            {eSpell::SLOW, 8},
+            {eSpell::CURSE, 8},
+            {eSpell::DRAGONFLY_DISPEL, 8},
+            {eSpell::MISFORTUNE, 8},
+            {eSpell::DISRUPTING_RAY, 8},
+            {eSpell::DISEASE, 8},
+            {eSpell::WEAKNESS, 8},
+            {eSpell::NONE, 0},
+        },
+        {
+
+            {eSpell::HYPNOTIZE, 4},
+            {eSpell::BLIND, 4},
+            {eSpell::BERSERK, 4},
+            {eSpell::AGING, 4},
+            {eSpell::POISON, 11},
+            {eSpell::SORROW, 11},
+            {eSpell::ACID_BREATH, 11},
+            {eSpell::FORGETFULNESS, 11},
+            {eSpell::SLOW, 8},
+            {eSpell::CURSE, 8},
+            {eSpell::DRAGONFLY_DISPEL, 8},
+            {eSpell::MISFORTUNE, 8},
+            {eSpell::DISRUPTING_RAY, 8},
+            {eSpell::DISEASE, 8},
+            {eSpell::WEAKNESS, 8},
+            {eSpell::NONE, 0},
+        }
+
+    };
+
+} constexpr wogCreatureSpellData;
+
+eSpell GetRandomDebuffSpellToCast(_BattleStack_ *atkStack, _BattleStack_ *targetMon)
+{
+
+    const int creatureNum = atkStack->count_current;
+    const int arrayIndex = (creatureNum < 10) ? 0 : (creatureNum < 20) ? 1 : (creatureNum < 50) ? 2 : 3; // hate that
+    const auto &spellDataArray = wogCreatureSpellData.basedOnCreatureAmountSpell[arrayIndex];
+    int totalChance = 0;
+
+    const int casterSide = atkStack->GetSide();
+
+    for (const auto &spellData : spellDataArray)
+    {
+        if (spellData.spellID == eSpell::NONE)
+            break;
+
+        if (targetMon->CanUseSpell(spellData.spellID, casterSide, 1, 1))
+            totalChance += spellData.chance;
+    }
+
+    if (totalChance == 0)
+        return eSpell::NONE;
+
+    int randomValue = Rand() % totalChance;
+    for (const auto &spellData : spellDataArray)
+    {
+        if (spellData.spellID == eSpell::NONE)
+            break;
+
+        if (!targetMon->CanUseSpell(spellData.spellID, casterSide, 1, 1))
+            continue;
+
+        if (randomValue < spellData.chance)
+            return spellData.spellID;
+
+        randomValue -= spellData.chance;
+    }
+    return eSpell::NONE;
+}
+
+_LHF_(OnBeforeSorceressShot)
+{
+    afterSorceressAbilityTarget = reinterpret_cast<_BattleStack_ *>(c->eax);
+    c->return_address = 0x075CA76;
+    return NO_EXEC_DEFAULT;
+}
+_LHF_(OnBeforeHellSteedAttack)
+{
+    afterHellSteedAbilityTarget = reinterpret_cast<_BattleStack_ *>(c->eax);
+    c->return_address = 0x075CA76;
+    return NO_EXEC_DEFAULT;
+}
+_LHF_(OnBeforeCreatureAttack)
+{
+    afterAnyAttackAbilityTarget = reinterpret_cast<_BattleStack_ *>(c->eax);
+    c->return_address = 0x075CAFE;
+    return NO_EXEC_DEFAULT;
+}
+
+eSpell WoG_GetStackSpellToCast(_BattleStack_ *atkStack, _BattleStack_ *targetMon, const eSpell fixedSpellToCast)
+{
+
+    const eSpell spellToCast =
+        fixedSpellToCast != eSpell::NONE ? fixedSpellToCast : GetRandomDebuffSpellToCast(atkStack, targetMon);
+
+    if (spellToCast != eSpell::NONE &&
+        CALL_6(_byte_, __thiscall, 0x05A8950, o_BattleMgr, spellToCast, atkStack->GetSide(), targetMon, 1, 1))
+    {
+        return spellToCast;
+    }
+
+    return eSpell::NONE;
+}
+
+void __stdcall OnAfterAttackDrawActionPlay(HiHook *h, _BattleMgr_ *mgr, const int anim, const int showAttack)
+{
+
+    CALL_3(void, __thiscall, h->GetDefaultFunc(), mgr, anim, showAttack);
+    _BattleStack_ *atkStack = mgr->GetCurrentStack(); // reinterpret_cast<_BattleStack_ *>(0x282E60C);
+
+    if (atkStack != combatActionAttacker || !combatActionAttacker)
+    {
+        return;
+    }
+    const int creatureNum = atkStack->count_current;
+
+    // sorcery shooting attack
+    auto target = afterSorceressAbilityTarget;
+    if (target && target->count_current > 0 &&
+        (creatureNum >= 40 || (creatureNum > 0 && (creatureNum << 1) + 20 > Randint(1, 100))))
+    {
+        const eSpell spellId = WoG_GetStackSpellToCast(atkStack, target, eSpell::NONE);
+        if (spellId != eSpell::NONE)
+        {
+            target->spellAfterAttack = spellId;
+            mgr->PlayMagicAnimation(-1, showAttack);
+        }
+    }
+
+    // hell steed Fire Wall Attack
+    target = afterHellSteedAbilityTarget;
+    if (target && target->count_current > 0 && creatureNum > 0)
+    {
+        const eSpell spellId = WoG_GetStackSpellToCast(atkStack, target, eSpell::FIRE_WALL);
+        if (spellId != eSpell::NONE)
+        {
+            target->spellAfterAttack = spellId;
+            mgr->PlayMagicAnimation(-1, showAttack);
+        }
+    }
+
+    // wog ability cast
+    target = afterAnyAttackAbilityTarget;
+    if (!target || target->count_current < 1 || creatureNum < 1 || IntAt(0x079F138) ||
+        !CALL_2(BOOL, __cdecl, 0x071C16D, target, 1)) // if AI ro CrExpo isn't prepared
+        return;
+
+    struct CrExpBonStr
+    {
+        unsigned __int32 Act : 1;
+        unsigned __int32 _un : 31;
+        char Type;
+        unsigned __int8 Mod;
+        byte Lvls[11];
+    };
+    const CrExpBonStr *bonusStr = *reinterpret_cast<CrExpBonStr **>(0x071D826 + 2);
+    const int expLvl = IntAt(0x0847D94);
+
+    for (size_t i = 0; i < 14; i++)
+    {
+        auto &bonus = bonusStr[i];
+        if (bonus.Act && bonus.Type == 99)
+        {
+
+            const eSpell spellToCast = eSpell(bonus.Mod);
+            const int chanceToCast = bonus.Lvls[expLvl];
+            if (spellToCast < 0 || chanceToCast < 1)
+                continue;
+            if (chanceToCast >= 100 || chanceToCast >= Randint(1, 100))
+            {
+                const eSpell spellId = WoG_GetStackSpellToCast(atkStack, target, spellToCast);
+
+                if (spellId != eSpell::NONE)
+                {
+                    target->spellAfterAttack = spellId;
+                    mgr->PlayMagicAnimation(-1, 0);
+                }
+            }
+        }
+    }
+}
+
+// © daemon_n
+// отключаем автокаст заклинаний в бстрой и автобитве, если в настройках игрока стоит "не кастовать за ИИ"
+_LHF_(BattleMgr_TryToCastAutoSpell)
+{
+    if (!IntAt(0x06987E8) && !o_AutoSolo) // проверка опции и gosolo
+    {
+        c->return_address = 0x04230BC;
+        return NO_EXEC_DEFAULT;
+    }
+
+    return EXEC_DEFAULT;
 }
 
 // ##############################################################################################################################
@@ -1025,8 +1269,6 @@ void GameLogic(PatcherInstance *_PI)
     _PI->WriteHiHook(0x403F00, SPLICE_, EXTENDED_, THISCALL_, Y_RedrawResources);
     _PI->WriteLoHook(0x415D4D, Y_AdvMgr_RedrawInfoPanel);
 
-    //_PI->WriteLoHook(0x056AE8A,AIAdvMgr_RedrawInfoPanel);
-
     //// ЧИТ-Меню ////
     // Увеличиваем кол-во заклинаний 999 -> 9999
     _PI->WriteWord(0x4F508F + 4, 9999);
@@ -1034,9 +1276,10 @@ void GameLogic(PatcherInstance *_PI)
     _PI->WriteWord(0x4F511A + 4, 9999);
     // Увеличиваем кол-во существ 5 -> 100
     _PI->WriteByte(0x4F4ED2 + 1, 100);
+
+    // © daemon_n
     // исправление чита "построить все здания". На сбрасывается флаг введённого чита
     Era::RegisterHandler(OnGameLeave, "OnGameLeave");
-
     // © daemon_n
     // отключение сброса эффекта берсеркера, если он был получен лишь в процессе атаки, а не на начало хода
     // исправление имеет смысл для срабатывания берсерка при получении эффекта в качестве ответного удара/выстрела;
@@ -1044,4 +1287,24 @@ void GameLogic(PatcherInstance *_PI)
     skipRangeBerserkReset = _PI->WriteJmp(0x0440017, 0x0440020);
     _PI->WriteHiHook(0x4419D0, SPLICE_, EXTENDED_, THISCALL_, BattleStack_PrepareMelee);
     _PI->WriteHiHook(0x43FE80, SPLICE_, EXTENDED_, THISCALL_, BattleStack_PrepareShoot);
+
+    // © daemon_n
+    // переписываем логику колдовства заклинания после атаки на действительное колдовство после атаки
+    _PI->WriteLoHook(0x075C9A1, OnBeforeSorceressShot);
+    _PI->WriteLoHook(0x075CA66, OnBeforeHellSteedAttack);
+    _PI->WriteLoHook(0x075CAA6, OnBeforeCreatureAttack);
+
+    _PI->WriteHiHook(0x43FA11, CALL_, EXTENDED_, THISCALL_, OnAfterAttackDrawActionPlay); // magog shooting
+    _PI->WriteHiHook(0x43FE0B, CALL_, EXTENDED_, THISCALL_, OnAfterAttackDrawActionPlay); // lich shooting
+    _PI->WriteHiHook(0x43FA7C, CALL_, EXTENDED_, THISCALL_, OnAfterAttackDrawActionPlay); // native shooting
+    _PI->WriteHiHook(0x4418A5, CALL_, EXTENDED_, THISCALL_, OnAfterAttackDrawActionPlay); // melee attack
+    // исправляем хук "OnAfterShooting", чтобы работал для всех типов атак, а не только для стрельбы
+    // заодно специальные стрелки получают звук атаки;
+    _PI->WriteJmp(0x43FA16, 0x43FAD9); // magog shooting
+    // _PI->WriteJmp(0x43FE10, 0x43FAD9); // lich shooting IMPLEMENT LATER W/ LoHook- It has some referes to the
+    // replaceable address;
+
+    // © daemon_n
+    // отключаем автокаст заклинаний в бстрой и автобитве, если в настройках игрока стоит "не кастовать за ИИ"
+    _PI->WriteLoHook(0x0422FC2, BattleMgr_TryToCastAutoSpell);
 }

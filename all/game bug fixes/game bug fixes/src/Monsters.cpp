@@ -382,29 +382,8 @@ _LHF_(js_BattleStack_InitAssets_BeforeInitShootingSound)
     return EXEC_DEFAULT;
 }
 
-// © Archer30
-// Fix messing up spell immunity checks for stack exp spells
-// WoG doesn't use the native way to check spell immunity for stack exp spells, this script fixes its behaviours.
-_LHF_(gem_OnCheckWoGSpellImmunity)
-{
 
-    const int spellId = IntAt(c->ebp + 0x18);
-    if (spellId != -1)
-    {
-        _BattleStack_ *currentStack = o_BattleMgr->GetCurrentStack();
-        _BattleStack_ *targetStack = *reinterpret_cast<_BattleStack_ **>(c->ebp + 0xC);
 
-        // store result
-        IntAt(c->ebp - 0x4) =
-            targetStack->CanUseSpell(spellId, currentStack->GetSide(), 1, 1); // check stack and caster type is monster
-        IntAt(c->ebp - 0x10) = 0;
-
-        c->return_address = 0x75C12C;
-        return NO_EXEC_DEFAULT;
-    }
-
-    return EXEC_DEFAULT;
-}
 // © Archer30
 // Rebalance Hill Forts - the cost of upgrade is calculated based on the level of the upgraded monster instead of the
 // pre-upgraded monster
@@ -639,13 +618,6 @@ void Monsters(PatcherInstance *_PI)
     _PI->WriteCodePatch(0x5F37F8, "%n", 5);  // 5 nop
     _PI->WriteCodePatch(0x5F3800, "%n", 5);  // 5 nop
 
-    // © Archer30
-    // Fix messing up spell immunity checks for stack exp spells
-    // WoG doesn't use the native way to check spell immunity for stack exp spells, this script fixes its behaviours.
-    // Sorceress spell uses the same function, yet it seems to respect correct spell immunity, thus we igonre here.
-    // Discussion: http://wforum.heroes35.net/showthread.php?tid=4218&pid=139198#pid139198
-    _PI->WriteLoHook(0x75BA02, gem_OnCheckWoGSpellImmunity);
-    //
     // © Archer30
     // Rebalance Hill Forts - the cost of upgrade is calculated based on the level of the upgraded monster instead of
     // the pre-upgraded monster ; This is considered a bug fix as in the original H3, every upgrade has the same
