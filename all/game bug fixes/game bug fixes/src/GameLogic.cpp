@@ -959,8 +959,8 @@ void __stdcall OnAfterAttackDrawActionPlay(HiHook *h, _BattleMgr_ *mgr, const in
 
     // wog ability cast
     target = afterAnyAttackAbilityTarget;
-    if (!target || target->count_current < 1 || creatureNum < 1 || IntAt(0x079F138) ||
-        !CALL_2(BOOL, __cdecl, 0x071C16D, target, 1)) // if AI ro CrExpo isn't prepared
+    if (!target || target->count_current < 1 || creatureNum < 1 || IntAt(0x079F138) || // if Complete AI combat
+        !CALL_2(BOOL, __cdecl, 0x071C16D, atkStack, 1)) // or CrExpo isn't prepared for attacker stack
         return;
 
     struct CrExpBonStr
@@ -984,6 +984,7 @@ void __stdcall OnAfterAttackDrawActionPlay(HiHook *h, _BattleMgr_ *mgr, const in
             const int chanceToCast = bonus.Lvls[expLvl];
             if (spellToCast < 0 || chanceToCast < 1)
                 continue;
+
             if (chanceToCast >= 100 || chanceToCast >= Randint(1, 100))
             {
                 const eSpell spellId = WoG_GetStackSpellToCast(atkStack, target, spellToCast);
@@ -1300,7 +1301,7 @@ void GameLogic(PatcherInstance *_PI)
     _PI->WriteHiHook(0x4418A5, CALL_, EXTENDED_, THISCALL_, OnAfterAttackDrawActionPlay); // melee attack
     // исправляем хук "OnAfterShooting", чтобы работал для всех типов атак, а не только для стрельбы
     // заодно специальные стрелки получают звук атаки;
-    _PI->WriteJmp(0x43FA16, 0x43FAD9); // magog shooting
+    // _PI->WriteJmp(0x43FA16, 0x43FAD9); // magog shooting
     // _PI->WriteJmp(0x43FE10, 0x43FAD9); // lich shooting IMPLEMENT LATER W/ LoHook- It has some referes to the
     // replaceable address;
 

@@ -184,7 +184,7 @@ int __cdecl ERM_Fix_EA_E(HiHook *hook, _BattleStack_ *stack)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-
+#include <set>
 // Решаем проблему когда бонусы специалистов не считаются Супер существам
 // обновлено: теперь поддерживается бесконечная цепочка улучшений существ, а не только 7 уровней
 int __stdcall Y_FixWoG_GetCreatureGrade(LoHook *h, HookContext *c)
@@ -192,16 +192,19 @@ int __stdcall Y_FixWoG_GetCreatureGrade(LoHook *h, HookContext *c)
     const int creatureId = IntAt(c->ebp + 8);
     int heroCreatureSpec = c->ecx;
 
-    while (heroCreatureSpec >= 0)
+    std::set<int> usedCreatures;
+    while (heroCreatureSpec >= 0 && usedCreatures.insert(heroCreatureSpec).second)
     {
-        heroCreatureSpec = CALL_1(int, _cdecl, 0x0724A5F, heroCreatureSpec); // wog function to get creature grade
         if (heroCreatureSpec == creatureId)
         {
             c->eax = heroCreatureSpec;
             c->return_address = 0x04E64FF;
             return NO_EXEC_DEFAULT;
         }
+
+        heroCreatureSpec = CALL_1(int, _cdecl, 0x0724A5F, heroCreatureSpec); // wog function to get creature grade
     }
+
     return EXEC_DEFAULT;
 }
 
@@ -381,8 +384,6 @@ _LHF_(js_BattleStack_InitAssets_BeforeInitShootingSound)
     }
     return EXEC_DEFAULT;
 }
-
-
 
 // © Archer30
 // Rebalance Hill Forts - the cost of upgrade is calculated based on the level of the upgraded monster instead of the
