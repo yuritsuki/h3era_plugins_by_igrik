@@ -32,17 +32,9 @@ void __stdcall CrExpoSet_AddExpo(HiHook *h, _Hero_ *hero, int expToAdd, const in
     CALL_3(void, __cdecl, h->GetDefaultFunc(), hero, expToAdd, oldExp);
 }
 
-struct CrExpo
-{
-    INT32 experience;
-    INT32 number;
-    DWORD flags;
-    DWORD place;
-};
-
 _LHF_(WoG_CrExpo_Recalc)
 {
-    CrExpo *exp = *reinterpret_cast<CrExpo **>(c->ebp - 0x4);
+    _CrExpo_ *exp = *reinterpret_cast<_CrExpo_ **>(c->ebp - 0x4);
     const int creatureNum = IntAt(c->ebp + 0x8);
     exp->experience = static_cast<int>(static_cast<INT64>(exp->experience) * exp->number / creatureNum);
     exp->number = creatureNum;
@@ -57,7 +49,7 @@ _LHF_(WoG_SetNewExp_AtExpPush)
     const int sourceNumber = IntAt(c->ebp + 0x20);
     const int dstNumber = IntAt(c->ebp + 0x24);
 
-    auto *expTable = reinterpret_cast<CrExpo *>(0x0860550);
+    auto *expTable = reinterpret_cast<_CrExpo_ *>(0x0860550);
 
     INT64 totalNewExp = static_cast<INT64>(expTable[sourceExpoOffset].experience) * sourceNumber;
     totalNewExp += static_cast<INT64>(expTable[dstExpoOffset].experience) * dstNumber;
@@ -71,8 +63,8 @@ _LHF_(WoG_SetNewExp_AtExpPush)
 
 _LHF_(WoG_CreatureSplitDlg_AtSourceExp)
 {
-    auto &srcExpo = *reinterpret_cast<CrExpo *>(0x28602AC);
-    auto &dstExpo = *reinterpret_cast<CrExpo *>(0x2860294);
+    auto &srcExpo = *reinterpret_cast<_CrExpo_ *>(0x28602AC);
+    auto &dstExpo = *reinterpret_cast<_CrExpo_ *>(0x2860294);
 
     const int srcNum = IntAt(c->ebp - 0x10);
 
@@ -86,8 +78,8 @@ _LHF_(WoG_CreatureSplitDlg_AtSourceExp)
 }
 _LHF_(WoG_CreatureSplitDlg_AtDestExp)
 {
-    auto &srcExpo = *reinterpret_cast<CrExpo *>(0x28602AC);
-    auto &dstExpo = *reinterpret_cast<CrExpo *>(0x2860294);
+    auto &srcExpo = *reinterpret_cast<_CrExpo_ *>(0x28602AC);
+    auto &dstExpo = *reinterpret_cast<_CrExpo_ *>(0x2860294);
 
     const int baseNum = IntAt(0x282A35C);
 
@@ -106,7 +98,6 @@ struct ArmySlotExperience
     int experience;
 } armySlots[14];
 
-bool isDebugMode = false;
 void DebugArmy(_Army_ *army, const char *armyName)
 {
     std::string msg = armyName;
@@ -126,15 +117,78 @@ void DebugArmy(_Army_ *army, const char *armyName)
     }
     o_MsgBox((char *)msg.c_str());
 }
+
+bool isDebugMode = false;
+// корректировка опыта при управлении армией ИИ в городе
+void __stdcall AI_Player_Hero_ManageArmyInTown(HiHook *h, DWORD *aiData, _Hero_ *hero, _Town_ *town)
+{
+
+    const BOOL stackExpisEnabled = IntAt(0x2772730);
+    if (stackExpisEnabled)
+    {
+        isDebugMode = 1;
+        auto townArmy = town->GetUpArmy();
+        for (size_t i = 0; i < 7; i++)
+        {
+            townArmy->AddStack(CID_GOLD_DRAGON, 11, 0);
+        }
+        DebugArmy(town->GetUpArmy(), "town AI_Player_Hero_ManageArmyInTown: army before");
+        DebugArmy(&hero->army, "hero AI_Player_Hero_ManageArmyInTown: army before");
+    }
+
+    CALL_3(void, __thiscall, h->GetDefaultFunc(), aiData, hero, town);
+
+    if (stackExpisEnabled)
+    {
+        isDebugMode = 0;
+        DebugArmy(town->GetUpArmy(), "town AI_Player_Hero_ManageArmyInTown: army after");
+        DebugArmy(&hero->army, "hero AI_Player_Hero_ManageArmyInTown: army after");
+    }
+}
+char __stdcall AI_MoveHeroToTown(HiHook *h, _Player_ *_this, _Town_ *town)
+{
+    if (_this->id == 1)
+    {
+        isDebugMode = 1;
+    }
+
+    return CALL_2(char, __thiscall, h->GetDefaultFunc(), _this, town);
+}
+
+_LHF_(WoG_InTowmArmyMerge_Before)
+{
+
+    if (isDebugMode)
+    {
+        //  o_MsgBox("2");
+        //   DebugArmy(reinterpret_cast<_Army_ *>(c->ecx), "hero army before capture");
+        //  DebugArmy(reinterpret_cast<_Army_ *>(c->eax), "town army before capture");
+    }
+
+    //  isDebugMode = true;
+    return EXEC_DEFAULT;
+}
+
 char __stdcall H3Army__Merge(HiHook *h, _Army_ *_this, _Army_ *army)
 {
     if (isDebugMode)
     {
-        DebugArmy(army, "townArmy Army");
-        DebugArmy(_this, "heroArmy Army");
-        isDebugMode = false;
+
+        //    o_MsgBox("1");
+
+        DebugArmy(army, "townArmy before merge");
+        DebugArmy(_this, "heroArmy before merge");
     }
     char result = CALL_2(char, __thiscall, h->GetDefaultFunc(), _this, army);
+
+    if (isDebugMode)
+    {
+        //  o_MsgBox("3");
+
+        //   DebugArmy(army, "townArmy after merge");
+        //   DebugArmy(_this, "heroArmy after merge");
+        isDebugMode = false;
+    }
     return result;
 }
 
@@ -142,11 +196,6 @@ void __stdcall H3Army__Arrange(HiHook *h, _Army_ *_this)
 {
 }
 
-_LHF_(WoG_InTowmArmyMerge_Before)
-{
-    isDebugMode = true;
-    return EXEC_DEFAULT;
-}
 _LHF_(WoG_InTowmArmyMerge_GuardIterator)
 {
     const int slotId = c->eax;
@@ -251,9 +300,14 @@ void CrExpoFixes(PatcherInstance *_PI)
     // тестируем отключение сортировки существ в ИИ Армиях, чтобы не ломать опыт
     if (false)
     {
-        _PI->WriteLoHook(0x0759A9A, WoG_InTowmArmyMerge_Before);
-        _PI->WriteHiHook(0x044B2F0, SPLICE_, EXTENDED_, THISCALL_, H3Army__Merge);
-        _PI->WriteHiHook(0x042D8E0, SPLICE_, EXTENDED_, THISCALL_, H3Army__Arrange);
+        _PI->WriteLoHook(0x0759A70, WoG_InTowmArmyMerge_Before);
+        // _PI->WriteLoHook(0x0525985, Town_BeforeDestroyCapitol);
+        // _PI->WriteLoHook(0x052599D, Town_DestroyCapitol);
+
+        _PI->WriteHiHook(0x04B9CE0, CALL_, EXTENDED_, THISCALL_, H3Army__Merge);
+        _PI->WriteHiHook(0x0526BE0, CALL_, EXTENDED_, THISCALL_, AI_MoveHeroToTown);
+        _PI->WriteHiHook(0x0525985, CALL_, EXTENDED_, THISCALL_, AI_Player_Hero_ManageArmyInTown);
+        // _PI->WriteHiHook(0x042D8E0, SPLICE_, EXTENDED_, THISCALL_, H3Army__Arrange);
     }
 
     // © daemon_n

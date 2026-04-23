@@ -3833,11 +3833,72 @@ NOALIGN struct _Npc_
 // флаг, определяющий, что опыт монстров был получен в битве
 #define o_CreExpoCombatFlag (*(int*)0x2861E14)
 // Структура опыта монстра 340
+enum eExpType
+{
+  CE_HERO = 0x1,
+  CE_MAP = 0x2,
+  CE_TOWN = 0x3,
+  CE_MINE = 0x4,
+  CE_HORN = 0x5,
+};
+
+
 NOALIGN struct _CrExpo_: _Struct_
 {
-  _dword_ Expo; // тек. опыт на 1 существо
-  _dword_ Num;  // число существ
-  _byte_ field_0C[332]; 
+  _dword_ experience; // тек. опыт на 1 существо
+  _dword_ number;  // число существ
+  struct
+  {
+      unsigned __int32 Act : 1;
+      unsigned __int32 Type : 4;
+      unsigned __int32 MType : 8;
+      unsigned __int32 mHasArt : 1;
+      unsigned __int32 mArt : 2;
+      unsigned __int32 mCopyArt : 2;
+      unsigned __int32 mSubArt : 4;
+      unsigned __int32 _un : 10;
+  } flags;
+
+  union {
+      DWORD UniData;
+      DWORD MixPos;
+      struct
+      {
+          __int16 Id;
+          __int16 Slot;
+      } Hero;
+      struct
+      {
+          unsigned __int32 X : 8;
+          unsigned __int32 Y : 8;
+          unsigned __int32 L : 1;
+          unsigned __int32 _un : 15;
+      } Map;
+
+      struct
+      {
+          unsigned __int32 X : 8;
+          unsigned __int32 Y : 8;
+          unsigned __int32 L : 1;
+          __int32 Slot : 15;
+      } Town;
+      struct
+      {
+          unsigned __int32 X : 8;
+          unsigned __int32 Y : 8;
+          unsigned __int32 L : 1;
+          __int32 Slot : 15;
+      } Mine;
+      struct
+      {
+          unsigned __int32 X : 8;
+          unsigned __int32 Y : 8;
+          unsigned __int32 L : 1;
+          __int32 Slot : 15;
+      } Horn;
+  } place;
+public:
+    inline _CrExpo_* Find();
 };
 
 
