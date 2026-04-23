@@ -136,6 +136,17 @@ _LHF_(Hero_MoraleClick)
     return EXEC_DEFAULT;
 }
 
+// © daemon_n
+// Исправление отображения текста с количеством существ в портрете существа в диалоге гарнизона
+int __cdecl CreaturePortraitText_sprintf(HiHook *h, char *buffer, const char *format, const int creaturesNum)
+{
+    if (creaturesNum < 100000)
+    {
+        return CALL_3(int, __cdecl, h->GetDefaultFunc(), buffer, format, creaturesNum);
+    }
+    return Era::FormatQuantity(creaturesNum, buffer, 32, 5, 3);
+}
+
 // @ JackSlater
 // исправление индекса слота в диалоге продажи артефактов
 // hd mod ранее ставил слот 9 вместе 18 ( что дублировало 9-й слот)
@@ -742,6 +753,44 @@ void Graphics(PatcherInstance *_PI)
     // © daemon_n
     // Рисуем тени для всех объектов на Карте Приключений (даже тех, у которых стоит флаг "is_flat")
     _PI->WriteHexPatch(0x041175B, "EB 09 90"); // jump short + nop
+
+    // © daemon_n
+    // Исправление отображения текста с количеством существ в портрете существа в диалоге гарнизона (ранее
+    // отображалось только 5 символов)
+
+    // окно героя (большой портрет)
+    _PI->WriteHiHook(0x04D9B44, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+
+    // окно встречи героев
+    _PI->WriteHiHook(0x05B136C, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+
+    // любое окно гарнизона
+    _PI->WriteHiHook(0x05AA140, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf); // CreaturePortraitText_sprintf
+
+    // окно форта на холме
+    _PI->WriteHiHook(0x04E8031, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf); // CreaturePortraitText_sprintf
+
+    // битва
+    _PI->WriteHiHook(0x046D966, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf); // предпросмотр юнита в битве
+    _PI->WriteHiHook(0x043E482, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf); // ярлык с количеством юнитов
+
+    // Окно обзора королевства
+    // расширяем поле текста для отображения количества существ для юнитов в гарнизоне
+    _PI->WriteByte(0x051CB3F + 1, 0x1C);  // ширина
+    _PI->WriteByte(0x051CB41 + 1, 0x54);  // x-позиция
+                                          // расширяем поле текста для отображения количества существ для юнитов у героя
+    _PI->WriteDword(0x051DB0F + 1, 0x1F); // x-позиция для def и txt - потому что управляет обоими сразу
+    _PI->WriteByte(0x051DC2D + 1, 0x1C);  // ширина
+    _PI->WriteByte(0x051DB7B + 2, 0xFD);  // x-позиция для def
+
+    _PI->WriteHiHook(0x051CAED, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+    _PI->WriteHiHook(0x051CD5E, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+    _PI->WriteHiHook(0x051D096, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+    _PI->WriteHiHook(0x051D1E5, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+    _PI->WriteHiHook(0x051D4EE, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+    _PI->WriteHiHook(0x051D810, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+    _PI->WriteHiHook(0x051DBE8, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+    _PI->WriteHiHook(0x051DE00, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
 
     // исправление индекса слота в диалоге продажи артефактов
     // hd mod ранее ставил слот 9 вместе 18 ( что дублировало 9-й слот)
