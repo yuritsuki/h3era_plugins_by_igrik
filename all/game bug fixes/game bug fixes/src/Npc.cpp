@@ -187,6 +187,20 @@ _ERH_(OnAfterCreateWindow)
 }
 
 // @daemon_n
+// отключаем командира инферно, забирающего армию не у нейтральных армий
+_LHF_(NPC_DisableInfernoCommander)
+{
+
+    const int defenderPlayerId = IntAt(0x02846BC0);
+    if (defenderPlayerId >= 0 && defenderPlayerId < 8)
+    {
+        c->return_address = 0x0075A637; // пропуск всей механики забора армии
+        return NO_EXEC_DEFAULT;
+    }
+
+    return EXEC_DEFAULT;
+}
+// @daemon_n
 // фикс: сообщение о посещении кристалов командиров показываются до их удаления с карты
 int wogObjectType = 0;
 int wogIsHuman = 0;
@@ -289,6 +303,9 @@ void Npc(PatcherInstance *_PI)
     // пропуск оригинальной механики
     _PI->WriteJmp(0x0706059, 0x0706070);
 
+    // @daemon_n
+    // отключаем командира инферно, забирающего армию не у нейтральных армий
+    _PI->WriteLoHook(0x075A615, NPC_DisableInfernoCommander);
     //
     //   // увеличение количества кристаллов до 6;
     //   // ResetNpc
