@@ -662,6 +662,9 @@ void Monsters(PatcherInstance *_PI)
         // добавляем и существ 8-го уровня
         _PI->WriteLoHook(0x766E4E, Y_SetWogHates);
 
+        // восстанавливаем двойную атаку Фанатикам Войны
+        o_CreatureInfo[CID_WAR_ZEALOT].doubleAttack = true;
+
         // удаляем иммунитеты к огню у призраков
         o_CreatureInfo[CID_GHOST].fireImmunity = false;
 
