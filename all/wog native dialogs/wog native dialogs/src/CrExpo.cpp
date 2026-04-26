@@ -376,7 +376,7 @@ int __cdecl Y_NewDlg_CreatureExpo(HiHook* hook, _CreatureExpo_* crexpo)
         _DlgButton_* bttnUpg;
         bttnUpg = b_DlgButton_Create(x-152, y-70, 64, 30, 1, "DlgExpUp.def", 0, 1, 0, 0, 0);
         bttnUpg->SetHotKey(HK_U);
-        bttnUpg->SetHotKey(HK_SPACE);
+        // bttnUpg->SetHotKey(HK_SPACE); // disabled by daemon_n; space is for "ok"
         dlg->AddItem(bttnUpg);
     }
 
