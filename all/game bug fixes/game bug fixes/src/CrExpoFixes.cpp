@@ -98,8 +98,9 @@ struct ArmySlotExperience
     int experience;
 } armySlots[14];
 
-void DebugArmy(_Army_ *army, const char *armyName)
+void DebugArmy(_Army_ *army, const char *armyName, _CrExpo_ **crexpos = nullptr)
 {
+    return;
     std::string msg = armyName;
     msg += "\n\n\n";
     for (int i = 0; i < 7; i++)
@@ -112,6 +113,11 @@ void DebugArmy(_Army_ *army, const char *armyName)
             msg += std::to_string(army->type[i] + 2) + " valign=bottom}";
             msg += " Count=";
             msg += std::to_string(army->count[i]);
+            if (crexpos && crexpos[i])
+            {
+                msg += " Exp=";
+                msg += std::to_string(crexpos[i]->experience);
+            }
             msg += "\n\n";
         }
     }
@@ -119,30 +125,305 @@ void DebugArmy(_Army_ *army, const char *armyName)
 }
 
 bool isDebugMode = false;
+BOOL applyChangesToAI = false;
+void __stdcall AI_ArmyCompletion_BuyNewStacks(HiHook *h, DWORD *purchaser, _Army_ *heroArmy, const int moraleBonus,
+                                              _Army_ *adjArmy, _Resources_ *playerResources, const BOOL realBuying,
+                                              const BOOL hasAlliance)
+{
+
+    if (!applyChangesToAI || !realBuying)
+    {
+        return CALL_7(void, __thiscall, h->GetDefaultFunc(), purchaser, heroArmy, moraleBonus, adjArmy, playerResources,
+                      realBuying, hasAlliance);
+    }
+    const BOOL stackExpisEnabled = IntAt(0x2772730);
+
+    CALL_7(void, __thiscall, h->GetDefaultFunc(), purchaser, heroArmy, moraleBonus, adjArmy, playerResources,
+           realBuying, hasAlliance);
+}
+_Army_ topArmy, bottomArmy;
+
+struct PoolItem
+{
+    int type;
+    int count;
+    int64_t expMass; // ❗ вместо DWORD exp
+};
+
+int BuildPool(PoolItem *pool, const _Army_ &army, _CrExpo_ *crexpos[7])
+{
+    int poolSize = 0;
+
+    for (int i = 0; i < 7; i++)
+    {
+        auto &crexp = crexpos[i];
+        if (army.count[i] > 0)
+        {
+            pool[poolSize++] = {army.type[i], army.count[i], crexp ? (int64_t)crexp->experience * crexp->number : 0};
+        }
+        if (crexp)
+            crexp->Clear();
+    }
+    return poolSize;
+}
+
+struct TakeResult
+{
+    int taken;        // сколько реально взяли
+    int64_t totalExp; // сумма (exp * count)
+};
+static inline void TakeFromPool(PoolItem *pool, const int poolSize, const int type, const int need,
+                                TakeResult &out // ← возврат по ссылке
+)
+{
+    int remaining = need;
+    int64_t totalExp = 0;
+
+    for (int i = 0; i < poolSize && remaining > 0; i++)
+    {
+        PoolItem &p = pool[i];
+
+        if (p.count <= 0)
+            continue;
+
+        if (p.type != type)
+            continue;
+
+        int take = min(p.count, remaining);
+
+        int64_t takeMass = (p.expMass * take) / p.count;
+        totalExp += takeMass;
+
+        p.count -= take;
+        remaining -= take;
+    }
+
+    out.taken = need - remaining;
+    out.totalExp = totalExp;
+}
+// static inline void CleanupPool(PoolItem *pool, int poolSize)
+//{
+//     for (int i = 0; i < poolSize; i++)
+//     {
+//         if (pool[i].count > 0 && pool[i].exp)
+//         {
+//             pool[i].exp->Clear();
+//         }
+//     }
+// }
+void RemapArmyFromPool(PoolItem *pool, const int poolSize, _Army_ *newArmy, const eExpType expType,
+                       const _CrExpo_::UniData &basePlace
+
+)
+{
+    for (int i = 0; i < 7; i++)
+    {
+        const int type = newArmy->type[i];
+        const int count = newArmy->count[i];
+
+        // 🔻 пустой слот
+        if (count <= 0)
+        {
+            continue;
+        }
+
+        TakeResult res{};
+        TakeFromPool(pool, poolSize, type, count, res);
+
+        _CrExpo_::UniData data = basePlace;
+
+        if (expType == CE_HERO)
+        {
+            data.Hero.Slot = i;
+        }
+        else
+        {
+            data.Town.Slot = i;
+        }
+
+        const int offset = _CrExpo_::SetNewAndClamp(expType, data, type, count, 0);
+
+        if (offset >= 0)
+        {
+            _CrExpo_ *exp = &reinterpret_cast<_CrExpo_ *>(0x0860550)[offset];
+            // ⚖️ вычисление опыта
+            if (res.taken > 0)
+            {
+                int64_t avg = (res.totalExp + res.taken / 2) / res.taken; // округление
+
+                if (avg > 0xFFFFFFFF)
+                    avg = 0xFFFFFFFF;
+
+                exp->experience = (DWORD)avg;
+            }
+            else
+            {
+                // покупка
+                exp->experience = 0;
+            }
+        }
+    }
+}
+
+BOOL GetArmyExperience(_Army_ *army, const eExpType type, _CrExpo_::UniData baseData, _CrExpo_ *crexps[7])
+{
+    switch (type)
+    {
+    case CE_HERO:
+        for (size_t i = 0; i < 7; i++)
+        {
+            baseData.Hero.Slot = i;
+            crexps[i] = _CrExpo_::Find(CE_HERO, baseData);
+        }
+        break;
+
+    case CE_TOWN:
+        for (size_t i = 0; i < 7; i++)
+        {
+            baseData.Town.Slot = i;
+            crexps[i] = _CrExpo_::Find(CE_TOWN, baseData);
+        }
+        break;
+    case CE_MINE:
+        for (size_t i = 0; i < 7; i++)
+        {
+            baseData.Mine.Slot = i;
+            crexps[i] = _CrExpo_::Find(CE_MINE, baseData);
+        }
+        break;
+    default:
+        return FALSE;
+    }
+    return TRUE;
+}
+
 // корректировка опыта при управлении армией ИИ в городе
 void __stdcall AI_Player_Hero_ManageArmyInTown(HiHook *h, DWORD *aiData, _Hero_ *hero, _Town_ *town)
 {
 
-    const BOOL stackExpisEnabled = IntAt(0x2772730);
-    if (stackExpisEnabled)
-    {
-        isDebugMode = 1;
-        auto townArmy = town->GetUpArmy();
-        for (size_t i = 0; i < 7; i++)
-        {
-            townArmy->AddStack(CID_GOLD_DRAGON, 11, 0);
-        }
-        DebugArmy(town->GetUpArmy(), "town AI_Player_Hero_ManageArmyInTown: army before");
-        DebugArmy(&hero->army, "hero AI_Player_Hero_ManageArmyInTown: army before");
-    }
+    // если включе опыт существ
+    const BOOL stackExpIsEnabled = IntAt(0x2772730);
 
+    if (stackExpIsEnabled)
+    {
+        memcpy(&topArmy, town->GetUpArmy(), sizeof(_Army_)); // сохраняем данные армии города до обмена
+        memcpy(&bottomArmy, &hero->army, sizeof(_Army_));    // сохраняем данные армии героя до обмена
+
+        applyChangesToAI = true;
+        if (town->id == 2)
+        {
+
+            _CrExpo_::UniData topArmyData{}, bottomArmyData{};
+            _CrExpo_ *topArmyExp[7]{}, *bottomArmyExp[7]{};
+
+            // сохраняем данные опыта до обмена армиями
+            bottomArmyData.Hero.Id = hero->id; // герой-визитёр
+
+            GetArmyExperience(&bottomArmy, CE_HERO, bottomArmyData, bottomArmyExp);
+
+            if (town->up_hero_id > -1)
+            {
+                topArmyData.Hero.Id = town->up_hero_id; // герой-защитник
+                GetArmyExperience(&topArmy, CE_HERO, topArmyData, topArmyExp);
+            }
+            else
+            {
+                topArmyData.Town.X = town->x;
+                topArmyData.Town.Y = town->y;
+                topArmyData.Town.L = town->z;
+                GetArmyExperience(&topArmy, CE_TOWN, topArmyData, topArmyExp);
+            }
+
+            DebugArmy(&topArmy, "town AI_Player_Hero_ManageArmyInTown: army before", topArmyExp);
+            DebugArmy(&bottomArmy, "hero AI_Player_Hero_ManageArmyInTown: army before", bottomArmyExp);
+        }
+    }
+    // вызываем оригинальную функцию для обмена армиями
     CALL_3(void, __thiscall, h->GetDefaultFunc(), aiData, hero, town);
 
-    if (stackExpisEnabled)
+    if (applyChangesToAI)
     {
-        isDebugMode = 0;
-        DebugArmy(town->GetUpArmy(), "town AI_Player_Hero_ManageArmyInTown: army after");
-        DebugArmy(&hero->army, "hero AI_Player_Hero_ManageArmyInTown: army after");
+
+        _CrExpo_::UniData topArmyData{}, bottomArmyData{};
+        _CrExpo_ *topArmyExp[7]{}, *bottomArmyExp[7]{};
+
+        // сохраняем данные опыта до обмена армиями
+        bottomArmyData.Hero.Id = hero->id; // герой-визитёр
+        GetArmyExperience(&bottomArmy, CE_HERO, bottomArmyData, bottomArmyExp);
+
+        eExpType topArmyType;
+        if (town->up_hero_id > -1)
+        {
+            topArmyData.Hero.Id = town->up_hero_id; // герой-защитник
+            topArmyType = CE_HERO;
+        }
+        else
+        {
+            topArmyType = CE_TOWN;
+            topArmyData.Town.X = town->x;
+            topArmyData.Town.Y = town->y;
+            topArmyData.Town.L = town->z;
+        }
+        GetArmyExperience(&topArmy, topArmyType, topArmyData, topArmyExp);
+
+        PoolItem pool[14];
+        int poolSize = BuildPool(pool, bottomArmy, bottomArmyExp);
+        poolSize += BuildPool(pool, topArmy, topArmyExp);
+
+        // 🔻 герой
+        RemapArmyFromPool(pool, poolSize, &hero->army, CE_HERO, bottomArmyData);
+        RemapArmyFromPool(pool, poolSize, town->GetUpArmy(), topArmyType, topArmyData);
+
+        // получаем данные армий после обмена
+        // если в городе есть герой-защитник, сохраняем его данные опыта, иначе сохраняем данные опыта армии города
+        if (town->id <= 2)
+        {
+            // сохраняем данные опыта до обмена армиями
+            bottomArmyData.Hero.Id = hero->id; // герой-визитёр
+            GetArmyExperience(&bottomArmy, CE_HERO, bottomArmyData, bottomArmyExp);
+            GetArmyExperience(&topArmy, topArmyType, topArmyData, topArmyExp);
+
+            DebugArmy(town->GetUpArmy(), "town AI_Player_Hero_ManageArmyInTown: army after", topArmyExp);
+            DebugArmy(&hero->army, "hero AI_Player_Hero_ManageArmyInTown: army after", bottomArmyExp);
+        }
+        applyChangesToAI = false;
+    }
+}
+
+void __stdcall AI_Town_BuyCreatures(HiHook *h, DWORD _this, _Town_ *town)
+{
+    const BOOL stackExpIsEnabled = IntAt(0x2772730);
+    if (stackExpIsEnabled)
+    {
+        memcpy(&topArmy, town->GetUpArmy(), sizeof(_Army_)); // сохраняем данные армии города до обмена
+        isDebugMode = true;
+    }
+    CALL_2(void, __thiscall, h->GetDefaultFunc(), _this, town);
+    if (stackExpIsEnabled)
+    {
+        if (memcmp(&topArmy, town->GetUpArmy(), sizeof(_Army_)) == 0)
+            return; // если армия не изменилась, то не нужно ничего делать
+
+        _CrExpo_::UniData topArmyData{};
+        _CrExpo_ *topArmyExp[7]{};
+        eExpType topArmyType;
+        if (town->up_hero_id > -1)
+        {
+            topArmyData.Hero.Id = town->up_hero_id; // герой-защитник
+            topArmyType = CE_HERO;
+        }
+        else
+        {
+            topArmyType = CE_TOWN;
+            topArmyData.Town.X = town->x;
+            topArmyData.Town.Y = town->y;
+            topArmyData.Town.L = town->z;
+        }
+        if (!GetArmyExperience(&topArmy, topArmyType, topArmyData, topArmyExp))
+            return;
+        PoolItem pool[7];
+        int poolSize = BuildPool(pool, topArmy, topArmyExp);
+        RemapArmyFromPool(pool, poolSize, town->GetUpArmy(), topArmyType, topArmyData);
     }
 }
 char __stdcall AI_MoveHeroToTown(HiHook *h, _Player_ *_this, _Town_ *town)
@@ -304,10 +585,14 @@ void CrExpoFixes(PatcherInstance *_PI)
         // _PI->WriteLoHook(0x0525985, Town_BeforeDestroyCapitol);
         // _PI->WriteLoHook(0x052599D, Town_DestroyCapitol);
 
-        _PI->WriteHiHook(0x04B9CE0, CALL_, EXTENDED_, THISCALL_, H3Army__Merge);
-        _PI->WriteHiHook(0x0526BE0, CALL_, EXTENDED_, THISCALL_, AI_MoveHeroToTown);
+        //  _PI->WriteHiHook(0x04B9CE0, CALL_, EXTENDED_, THISCALL_, H3Army__Merge);
+        //    _PI->WriteHiHook(0x0526BE0, CALL_, EXTENDED_, THISCALL_, AI_MoveHeroToTown);
         _PI->WriteHiHook(0x0525985, CALL_, EXTENDED_, THISCALL_, AI_Player_Hero_ManageArmyInTown);
-        // _PI->WriteHiHook(0x042D8E0, SPLICE_, EXTENDED_, THISCALL_, H3Army__Arrange);
+        //  _PI->WriteHiHook(0x042BBE7, CALL_, EXTENDED_, THISCALL_, AI_ArmyCompletion_BuyNewStacks);
+        //  _PI->WriteHiHook(0x042BE83, CALL_, EXTENDED_, THISCALL_, AI_ArmyCompletion_BuyNewStacks);
+        // _PI->WriteHiHook(0x0428580, CALL_, EXTENDED_, THISCALL_, AI_Town_BuyCreatures);
+
+        //  _PI->WriteHiHook(0x042D8E0, SPLICE_, EXTENDED_, THISCALL_, H3Army__Arrange);
     }
 
     // © daemon_n
