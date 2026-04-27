@@ -485,9 +485,10 @@ void __stdcall AI_H3Hero_JoinOneCreature(HiHook *h, _Hero_ *targetHero, const in
 void __stdcall AI_H3Hero_VisitGarrison(HiHook *h, _Hero_ *targetHero, _H3Garrison_ *sourceGarrison)
 {
     // если включе опыт существ
-    const BOOL stackExpIsEnabled = IntAt(0x2772730);
+    const BOOL applyChangesToAI =
+        IntAt(0x2772730) && sourceGarrison->armyRemovable && sourceGarrison->owner == targetHero->owner_id;
 
-    if (stackExpIsEnabled)
+    if (applyChangesToAI)
     {
         memcpy(&sourceArmyCopy, &sourceGarrison->army, sizeof(_Army_)); // сохраняем данные армии гарнизона до обмена
         memcpy(&targetArmyCopy, &targetHero->army, sizeof(_Army_));     // сохраняем данные армии героя до обмена
@@ -495,7 +496,7 @@ void __stdcall AI_H3Hero_VisitGarrison(HiHook *h, _Hero_ *targetHero, _H3Garriso
     // вызываем оригинальную функцию для обмена армиями
     CALL_2(void, __fastcall, h->GetDefaultFunc(), targetHero, sourceGarrison);
 
-    if (stackExpIsEnabled)
+    if (applyChangesToAI)
     {
         if (memcmp(&sourceArmyCopy, &sourceGarrison->army, sizeof(_Army_)) == 0 &&
             memcmp(&targetArmyCopy, &targetHero->army, sizeof(_Army_)) == 0)
