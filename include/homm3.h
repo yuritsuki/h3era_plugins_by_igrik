@@ -47,6 +47,7 @@ struct _HeroFlags_;
 struct _HeroInfo_;
 struct _HeroSpecInfo_;
 struct _Mine_;
+struct _H3Garrison_;
 struct _Player_;
 struct _Town_;
 struct _MapGlobalEvent_;
@@ -3034,17 +3035,29 @@ inline double DoubleRand(double low, double high)
 // *************************************
 
 // size 0x40 (64 byte)
-NOALIGN struct _Mine_ 
+NOALIGN struct _Mine_
 {
-  _byte_ owner;       // 0
-  _byte_ type;        // 1
-  _byte_ field_02[2]; // 2, 3
-  _Army_ army;        // 4-59
-  _byte_ x;           // 60
-  _byte_ y;           // 61
-  _byte_ z;           // 62
-  _byte_ field_3F;    // 63
-};  
+    _byte_ owner;       // 0
+    _byte_ type;        // 1
+    _byte_ isAbandoned; // 2
+    _byte_ field_03;    // 3
+    _Army_ army;        // 4-59
+    _byte_ x;           // 60
+    _byte_ y;           // 61
+    _byte_ z;           // 62
+    _byte_ field_3F;    // 63
+};
+// size 0x40 (64 byte)
+NOALIGN struct _H3Garrison_
+{
+    _byte_ owner;         // 0
+    _byte_ field_1[3];    // 3
+    _Army_ army;          // 4-59
+    _byte_ armyRemovable; // 60
+    _byte_ x;             // 61
+    _byte_ y;             // 62
+    _byte_ z;             // 63
+};
 
 NOALIGN struct _GarrisonBar_
 {
@@ -3842,76 +3855,84 @@ NOALIGN struct _Npc_
      CE_HORN = 0x5,
  };
 
-NOALIGN struct _CrExpo_ : _Struct_
-{
-    _dword_ experience; // тек. опыт на 1 существо
-    _dword_ number;     // число существ
-    struct
-    {
-        unsigned __int32 Act : 1;
-        unsigned __int32 Type : 4;
-        unsigned __int32 creatureId : 8;
-        unsigned __int32 mHasArt : 1;
-        unsigned __int32 mArt : 2;
-        unsigned __int32 mCopyArt : 2;
-        unsigned __int32 mSubArt : 4;
-        unsigned __int32 _un : 10;
-    } flags;
+ NOALIGN struct _CrExpo_ : _Struct_
+ {
+     _dword_ experience; // тек. опыт на 1 существо
+     _dword_ number;     // число существ
+     struct
+     {
+         unsigned __int32 Act : 1;
+         unsigned __int32 Type : 4;
+         unsigned __int32 creatureId : 8;
+         unsigned __int32 mHasArt : 1;
+         unsigned __int32 mArt : 2;
+         unsigned __int32 mCopyArt : 2;
+         unsigned __int32 mSubArt : 4;
+         unsigned __int32 _un : 10;
+     } flags;
 
-    union UniData {
-        DWORD uniData;
-        DWORD mixPos;
-        struct
-        {
-            __int16 Id;
-            __int16 Slot;
-        } Hero;
-        struct
-        {
-            unsigned __int32 X : 8;
-            unsigned __int32 Y : 8;
-            unsigned __int32 L : 1;
-            unsigned __int32 _un : 15;
-        } Map;
+     union UniData {
+         DWORD uniData;
+         DWORD mixPos;
+         struct
+         {
+             __int16 id;
+             __int16 slot;
+         } hero;
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             unsigned __int32 _un : 15;
+         } map;
+         union {
+         };
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             __int32 slot : 15;
+         } town;
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             __int32 slot : 15;
+         } mine;
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             __int32 slot : 15;
+         } garrison;
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             __int32 slot : 15;
+         } anyGarrison;
+     } place;
 
-        struct
-        {
-            unsigned __int32 X : 8;
-            unsigned __int32 Y : 8;
-            unsigned __int32 L : 1;
-            __int32 Slot : 15;
-        } Town;
-        struct
-        {
-            unsigned __int32 X : 8;
-            unsigned __int32 Y : 8;
-            unsigned __int32 L : 1;
-            __int32 Slot : 15;
-        } Mine;
-        struct
-        {
-            unsigned __int32 X : 8;
-            unsigned __int32 Y : 8;
-            unsigned __int32 L : 1;
-            __int32 Slot : 15;
-        } Horn;
-    } place;
-
-  public:
-    static inline _CrExpo_ *Find(const eExpType type, const UniData data)
-    {
-        return CALL_2(_CrExpo_ *, __cdecl, 0x0718617, type, data.uniData);
-    }
-    inline void Clear()
-    {
-        return CALL_1(void, __thiscall, 0x0718377, this);
-    };
-    static inline int SetNewAndClamp(const eExpType type, const UniData data, const int creatureId,
-                                     const int creaturesNum, const int expo)
-    {
-        return CALL_5(int, __cdecl, 0x0718AD0, type, data.uniData, creatureId, creaturesNum, expo);
-    }
-};
+   public:
+     static inline _CrExpo_ *Find(const eExpType type, const UniData data)
+     {
+         return CALL_2(_CrExpo_ *, __cdecl, 0x0718617, type, data.uniData);
+     }
+     inline void Clear()
+     {
+         return CALL_1(void, __thiscall, 0x0718377, this);
+     };
+     static inline int SetNewAndClamp(const eExpType type, const UniData data, const int creatureId,
+                                      const int creaturesNum, const int expo)
+     {
+         return CALL_5(int, __cdecl, 0x0718AD0, type, data.uniData, creatureId, creaturesNum, expo);
+     }
+ };
 
 char* GetShortFileName_Y(char* filename)
   {
