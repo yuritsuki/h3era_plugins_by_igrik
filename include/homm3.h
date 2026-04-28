@@ -3355,7 +3355,7 @@ NOALIGN struct _InputMgr_
 };
 
 
-_byte_ Sound_Play_Wav (const char* name_wav)
+inline _byte_ Sound_Play_Wav (const char* name_wav)
 {
   return CALL_3(_byte_, __fastcall, 0x59A890, name_wav, -1, 3);
 }
