@@ -47,6 +47,7 @@ struct _HeroFlags_;
 struct _HeroInfo_;
 struct _HeroSpecInfo_;
 struct _Mine_;
+struct _H3Garrison_;
 struct _Player_;
 struct _Town_;
 struct _MapGlobalEvent_;
@@ -1361,12 +1362,6 @@ NOALIGN struct _BattleStack_ : _Struct_  // размер 0x548 = 1352 байта
   return CALL_5(_int_, __thiscall, 0x4963C0, o_BattleMgr, spell_anim_id, this, 100, is_show_damage);
  } 
 
-  // проиграть анимацию заклинания на активном стеке (почему их 2 функции?)
- inline _byte_ PlayMagicAnimation2(_int_ spell_anim_id, _int_ is_show_damage = 0) 
- {
-    return CALL_3(_byte_, __thiscall, 0x468570, o_BattleMgr, spell_anim_id, is_show_damage);
- } 
-
  // Проиграть анимацию самого стека 
   inline _byte_ PlayStackAnimation(_int_ anim_id, _int_ is_restore_state)
  {
@@ -1555,6 +1550,11 @@ inline _byte_ Move(_int_ gex_id)
      default:
        return -1;
    }
+ }
+
+ inline char CanStackReceiveSpell( const int spell) const
+ {
+     return CALL_2(char, __fastcall, 0x4477A0, spell,this);
  }
 
  // WOG ФУНКЦИИ 
@@ -2262,7 +2262,12 @@ NOALIGN struct _BattleMgr_ : _Struct_
    {
      return TRUE;
    }
- } 
+ }
+ // проиграть анимацию заклинания на всех стеках и применить заклинания 
+ inline _byte_ PlayMagicAnimation(_int_ spell_anim_id, _int_ is_show_damage = 0)
+ {
+     return CALL_3(_byte_, __thiscall, 0x468570, this, spell_anim_id, is_show_damage);
+ }
 };
 
 // * how h3combatmonster is represented during quick combat
@@ -3030,17 +3035,29 @@ inline double DoubleRand(double low, double high)
 // *************************************
 
 // size 0x40 (64 byte)
-NOALIGN struct _Mine_ 
+NOALIGN struct _Mine_
 {
-  _byte_ owner;       // 0
-  _byte_ type;        // 1
-  _byte_ field_02[2]; // 2, 3
-  _Army_ army;        // 4-59
-  _byte_ x;           // 60
-  _byte_ y;           // 61
-  _byte_ z;           // 62
-  _byte_ field_3F;    // 63
-};  
+    _byte_ owner;       // 0
+    _byte_ type;        // 1
+    _byte_ isAbandoned; // 2
+    _byte_ field_03;    // 3
+    _Army_ army;        // 4-59
+    _byte_ x;           // 60
+    _byte_ y;           // 61
+    _byte_ z;           // 62
+    _byte_ field_3F;    // 63
+};
+// size 0x40 (64 byte)
+NOALIGN struct _H3Garrison_
+{
+    _byte_ owner;         // 0
+    _byte_ field_1[3];    // 3
+    _Army_ army;          // 4-59
+    _byte_ armyRemovable; // 60
+    _byte_ x;             // 61
+    _byte_ y;             // 62
+    _byte_ z;             // 63
+};
 
 NOALIGN struct _GarrisonBar_
 {
@@ -3338,7 +3355,7 @@ NOALIGN struct _InputMgr_
 };
 
 
-_byte_ Sound_Play_Wav (const char* name_wav)
+inline _byte_ Sound_Play_Wav (const char* name_wav)
 {
   return CALL_3(_byte_, __fastcall, 0x59A890, name_wav, -1, 3);
 }
@@ -3829,13 +3846,93 @@ NOALIGN struct _Npc_
 // флаг, определяющий, что опыт монстров был получен в битве
 #define o_CreExpoCombatFlag (*(int*)0x2861E14)
 // Структура опыта монстра 340
-NOALIGN struct _CrExpo_: _Struct_
-{
-  _dword_ Expo; // тек. опыт на 1 существо
-  _dword_ Num;  // число существ
-  _byte_ field_0C[332]; 
-};
+ enum eExpType
+ {
+     CE_HERO = 0x1,
+     CE_MAP = 0x2,
+     CE_TOWN = 0x3,
+     CE_MINE = 0x4,
+     CE_HORN = 0x5,
+ };
 
+ NOALIGN struct _CrExpo_ : _Struct_
+ {
+     _dword_ experience; // тек. опыт на 1 существо
+     _dword_ number;     // число существ
+     struct
+     {
+         unsigned __int32 Act : 1;
+         unsigned __int32 Type : 4;
+         unsigned __int32 creatureId : 8;
+         unsigned __int32 mHasArt : 1;
+         unsigned __int32 mArt : 2;
+         unsigned __int32 mCopyArt : 2;
+         unsigned __int32 mSubArt : 4;
+         unsigned __int32 _un : 10;
+     } flags;
+
+     union UniData {
+         DWORD uniData;
+         DWORD mixPos;
+         struct
+         {
+             __int16 id;
+             __int16 slot;
+         } hero;
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             unsigned __int32 _un : 15;
+         } map;
+         union {
+         };
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             __int32 slot : 15;
+         } town;
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             __int32 slot : 15;
+         } mine;
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             __int32 slot : 15;
+         } garrison;
+         struct
+         {
+             unsigned __int32 x : 8;
+             unsigned __int32 y : 8;
+             unsigned __int32 z : 1;
+             __int32 slot : 15;
+         } anyGarrison;
+     } place;
+
+   public:
+     static inline _CrExpo_ *Find(const eExpType type, const UniData data)
+     {
+         return CALL_2(_CrExpo_ *, __cdecl, 0x0718617, type, data.uniData);
+     }
+     inline void Clear()
+     {
+         return CALL_1(void, __thiscall, 0x0718377, this);
+     };
+     static inline int SetNewAndClamp(const eExpType type, const UniData data, const int creatureId,
+                                      const int creaturesNum, const int expo)
+     {
+         return CALL_5(int, __cdecl, 0x0718AD0, type, data.uniData, creatureId, creaturesNum, expo);
+     }
+ };
 
 char* GetShortFileName_Y(char* filename)
   {

@@ -15,53 +15,52 @@ char __stdcall HiHook_00441330(HiHook *h, _BattleStack_ *attacker, _BattleStack_
 
 void PlayLuckOrUnluckAttack(_BattleStack_ *attacker)
 {
+    int luck = attacker->luck;
+    if (!luck)
+        return;
 
-    if (int luck = attacker->luck)
+    if (luck < 0)
     {
-
-        if (luck < 0)
+        const int min_value = IntAt(0x44B145);
+        if (luck < min_value)
         {
-            const int min_value = IntAt(0x44B145);
-            if (luck < min_value)
-            {
-                luck = min_value;
-            }
+            luck = min_value;
+        }
 
-            if (Randint(1, 12) <= -luck)
+        if (Randint(1, 12) <= -luck)
+        {
+            attacker->isLucky = -1;
+            // Проигрываем анимацию неудачи
+            if (!o_BattleMgr->IsHiddenBattle())
             {
-                attacker->isLucky = -1;
-                // Проигрываем анимацию неудачи
-                if (!o_BattleMgr->IsHiddenBattle())
-                {
-                    Sound_Play_Wav("badluck.82m");
-                    char *crName = CALL_2(char *, __fastcall, 0x43FE20, attacker->creature_id, attacker->count_current);
-                    sprintf_s(o_TextBuffer, 0x300u, o_GENRLTXT_TXT->GetString(46), crName);
-                    o_BattleMgr->AddStatusMessage(o_TextBuffer);
-                    attacker->PlayMagicAnimation(48);
-                }
+                Sound_Play_Wav("badluck.82m");
+                char *crName = CALL_2(char *, __fastcall, 0x43FE20, attacker->creature_id, attacker->count_current);
+                sprintf_s(o_TextBuffer, 0x300u, o_GENRLTXT_TXT->GetString(46), crName);
+                o_BattleMgr->AddStatusMessage(o_TextBuffer);
+                attacker->PlayMagicAnimation(48);
             }
         }
-        else
+    }
+    else
+    {
+        const int max_value = IntAt(0x44B13B);
+        if (luck > max_value)
         {
-            const int max_value = IntAt(0x44B13B);
-            if (luck > max_value)
-            {
-                luck = max_value;
-            }
+            luck = max_value;
+        }
 
-            if (Randint(1, 24) <= luck)
+        if (Randint(1, 24) <= luck)
+        {
+            attacker->isLucky = 1;
+            // Проигрываем анимацию удачи
+            if (!o_BattleMgr->IsHiddenBattle())
             {
-                attacker->isLucky = 1;
-                // Проигрываем анимацию неудачи
-                if (!o_BattleMgr->IsHiddenBattle())
-                {
-                    Sound_Play_Wav("goodluck.82m");
-                    char *crName = CALL_2(char *, __fastcall, 0x43FE20, attacker->creature_id, attacker->count_current);
+                Sound_Play_Wav("goodluck.82m");
+                char *crName = CALL_2(char *, __fastcall, 0x43FE20, attacker->creature_id, attacker->count_current);
 
-                    sprintf_s(o_TextBuffer, 0x300u, o_GENRLTXT_TXT->GetString(47), crName);
-                    o_BattleMgr->AddStatusMessage(o_TextBuffer);
-                    attacker->PlayMagicAnimation(18);
-                }
+                sprintf_s(o_TextBuffer, 0x300u, o_GENRLTXT_TXT->GetString(47), crName);
+                o_BattleMgr->AddStatusMessage(o_TextBuffer);
+                attacker->PlayMagicAnimation(18);
             }
         }
     }

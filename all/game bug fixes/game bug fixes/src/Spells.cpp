@@ -190,6 +190,32 @@ _LHF_(Visions_MonsterCommand)
     return EXEC_DEFAULT;
 }
 
+// исправление невозможности воскресить Золотых Драконов (и прочую шушеру) через жертву (из-за иммунитета к воскрешению)
+_BattleStack_* __stdcall BattleMgr_CanCastSpellAtCoord(HiHook* h,
+    _BattleMgr_* bm,
+    const int  spellId,
+    const int side,
+    const  signed int gex,
+    const char a6,
+    const int casterKind)
+{
+    char savedSpell;
+    if (spellId == SPL_SACRIFICE)
+    {
+        savedSpell = ByteAt(0x05A4055 + 1);
+        ByteAt(0x05A4055 + 1) = SPL_SACRIFICE;
+        ByteAt(0x05A4110 + 1) = SPL_SACRIFICE;
+
+    }
+    _BattleStack_* result = CALL_6(_BattleStack_*, __thiscall, h->GetDefaultFunc(), bm, spellId, side, gex, a6, casterKind);
+    if (spellId == SPL_SACRIFICE)
+    {
+        ByteAt(0x05A4055 + 1) = savedSpell;
+        ByteAt(0x05A4110 + 1) = savedSpell;
+
+    }
+    return result;
+}
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -223,6 +249,9 @@ void Spells(PatcherInstance* _PI)
 	// добавление точного количества монстров в хинт бар Карты Приключений при активном заклинании Видение
     _PI->WriteLoHook(0x40C2D3, Visions_MonsterCommand);
 
+	// исправление невозможности воскресить Золотых Драконов (и прочую шушеру) через жертву (из-за иммунитета к воскрешению)
+    _PI->WriteHiHook(0x05A3C60, SPLICE_, EXTENDED_, THISCALL_, BattleMgr_CanCastSpellAtCoord);
+    
     // патчи без Tiphon.dll
     if (!TIPHON)
     {

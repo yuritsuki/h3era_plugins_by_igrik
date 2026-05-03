@@ -15,17 +15,11 @@ int __stdcall setActStack(LoHook *h, HookContext *c)
             return NO_EXEC_DEFAULT;
         }
     }
-    // если выстрелов у циклопов больше нет
-    // то забираем флаг "катапульта"
-    if (mon->creature_id == 94 || mon->creature_id == 95)
+    // если выстрелов у атакующих стену больше нет
+    else if (mon->creature.destroyWalls && mon->creature.shots < 1)
     {
-        if (mon->creature.shots < 1)
-        {
-            if (mon->creature.flags & 32)
-            {
-                mon->creature.flags -= 32;
-            }
-        }
+        // то забираем флаг "катапульта"
+        mon->creature.destroyWalls = false;
     }
     return EXEC_DEFAULT;
 }
@@ -159,71 +153,25 @@ int __cdecl ERM_Fix_EA_E(HiHook *hook, _BattleStack_ *stack)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-
-//// фикс переполнения опыта существ (фикс проверки на max опыт)
-//_int_ __stdcall Y_WoGCrExpoSet_AddExpo(LoHook* h, HookContext* c)
-//{
-//  int cr_Expo = DwordAt(c->ebp -0x8);
-//
-//  if ( cr_Expo ) {
-//      int expoOld = IntAt(cr_Expo);
-//      int expoAdd = IntAt(c->ebp -0xC);
-//
-//      if ( expoAdd < 0 || expoAdd > 200000 )
-//          expoAdd = 0;
-//
-//      // если опыт по какой то причине перевалил
-//      // через предел (2^32)/4 и ушёл в отрицательное число
-//      // ставим максимальный опыт
-//      if (expoOld < -1073741824) {
-//          IntAt(cr_Expo) = 200000;
-//      }
-//
-//      // если опыт был < 0 && > -1073741824, обнуляем опыт
-//      if (expoOld < 0) {
-//         IntAt(cr_Expo) = expoAdd;
-//      }
-//  }
-//
-//    return EXEC_DEFAULT;
-//}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// #define Wog_FOH_Monstr (*(int*)0x27718CC)
-#define WoG_CreatureUpgradeTable (*(int *)0x724A95)
-
+#include <set>
 // Решаем проблему когда бонусы специалистов не считаются Супер существам
+// обновлено: теперь поддерживается бесконечная цепочка улучшений существ, а не только 7 уровней
 int __stdcall Y_FixWoG_GetCreatureGrade(LoHook *h, HookContext *c)
 {
-    int ID = *(int *)(c->ebp + 8);
-    int mon_id = c->ecx;
-    int mon_idGr = *(int *)(WoG_CreatureUpgradeTable + mon_id * 4);
+    const int creatureId = IntAt(c->ebp + 8);
+    int heroCreatureSpec = c->ecx;
 
-    if (mon_idGr == -2)
+    std::set<int> usedCreatures;
+    while (heroCreatureSpec >= 0 && usedCreatures.insert(heroCreatureSpec).second)
     {
-        return EXEC_DEFAULT;
-    }
-    else if (mon_idGr == -1)
-    {
-        mon_idGr = CALL_1(int, __fastcall, 0x47AAD0, mon_id);
-    }
+        if (heroCreatureSpec == creatureId)
+        {
+            c->eax = heroCreatureSpec;
+            c->return_address = 0x04E64FF;
+            return NO_EXEC_DEFAULT;
+        }
 
-    int mon_idGr2 = *(int *)(WoG_CreatureUpgradeTable + mon_idGr * 4);
-
-    if (mon_idGr2 == -2)
-    {
-        return EXEC_DEFAULT;
-    }
-    else if (mon_idGr2 == -1)
-    {
-        mon_idGr = CALL_1(int, __fastcall, 0x47AAD0, mon_id);
-    }
-
-    if (ID == mon_idGr2)
-    {
-        c->ecx = mon_idGr;
+        heroCreatureSpec = CALL_1(int, _cdecl, 0x0724A5F, heroCreatureSpec); // wog function to get creature grade
     }
 
     return EXEC_DEFAULT;
@@ -407,29 +355,6 @@ _LHF_(js_BattleStack_InitAssets_BeforeInitShootingSound)
 }
 
 // © Archer30
-// Fix messing up spell immunity checks for stack exp spells
-// WoG doesn't use the native way to check spell immunity for stack exp spells, this script fixes its behaviours.
-_LHF_(gem_OnCheckWoGSpellImmunity)
-{
-
-    const int spellId = IntAt(c->ebp + 0x18);
-    if (spellId != -1)
-    {
-        _BattleStack_ *currentStack = o_BattleMgr->GetCurrentStack();
-        _BattleStack_ *targetStack = *reinterpret_cast<_BattleStack_ **>(c->ebp + 0xC);
-
-        // store result
-        IntAt(c->ebp - 0x4) =
-            targetStack->CanUseSpell(spellId, currentStack->GetSide(), 1, 1); // check stack and caster type is monster
-        IntAt(c->ebp - 0x10) = 0;
-
-        c->return_address = 0x75C12C;
-        return NO_EXEC_DEFAULT;
-    }
-
-    return EXEC_DEFAULT;
-}
-// © Archer30
 // Rebalance Hill Forts - the cost of upgrade is calculated based on the level of the upgraded monster instead of the
 // pre-upgraded monster
 _LHF_(gem_OnGetHillFortMonLevel)
@@ -541,6 +466,26 @@ _LHF_(WoG__WereWolfAction)
 
     return EXEC_DEFAULT;
 }
+// © daemon_n
+// отключение сообщения с нанесением урона при его блокировании Драколичами или прочими абилками
+const _BattleStack_ *blockingStack = nullptr;
+_LHF_(CrExpBon_StackBlock_DracolichBlock)
+{
+    blockingStack = *reinterpret_cast<const _BattleStack_ **>(c->ebp + 0x8);
+    return EXEC_DEFAULT;
+}
+void __stdcall BattleMgr_AttackingLogMessage(HiHook *h, _BattleMgr_ *_this, char *AttackerName, int attackerCount,
+                                             int damage, _BattleStack_ *target, int killedCount)
+{
+
+    if (blockingStack && target == blockingStack)
+    {
+        blockingStack = nullptr;
+        return;
+    }
+    CALL_6(void, __thiscall, h->GetDefaultFunc(), _this, AttackerName, attackerCount, damage, target, killedCount);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -583,9 +528,6 @@ void Monsters(PatcherInstance *_PI)
     // Решение бага Вога, когда в бою накладывается опыт через EA:E и атака, защита, уроны, скорость, боезапасы и т.п.
     // заново пересчитываются. Из-за этого теряются бонусы наложенных заклинаний (например бонус скорости от ускорения)
     _PI->WriteHiHook(0x726DE4, CALL_, EXTENDED_, CDECL_, ERM_Fix_EA_E);
-
-    // фикс переполнения опыта существ (вызов проверки на max опыт)
-    // _PI->WriteLoHook(0x71924A, Y_WoGCrExpoSet_AddExpo);
 
     // вызовы драконов от артефакта сердце дракона
     // меняем местами номера гексов,
@@ -644,13 +586,6 @@ void Monsters(PatcherInstance *_PI)
     _PI->WriteCodePatch(0x5F3800, "%n", 5);  // 5 nop
 
     // © Archer30
-    // Fix messing up spell immunity checks for stack exp spells
-    // WoG doesn't use the native way to check spell immunity for stack exp spells, this script fixes its behaviours.
-    // Sorceress spell uses the same function, yet it seems to respect correct spell immunity, thus we igonre here.
-    // Discussion: http://wforum.heroes35.net/showthread.php?tid=4218&pid=139198#pid139198
-    _PI->WriteLoHook(0x75BA02, gem_OnCheckWoGSpellImmunity);
-    //
-    // © Archer30
     // Rebalance Hill Forts - the cost of upgrade is calculated based on the level of the upgraded monster instead of
     // the pre-upgraded monster ; This is considered a bug fix as in the original H3, every upgrade has the same
     // creature level before and after
@@ -682,12 +617,21 @@ void Monsters(PatcherInstance *_PI)
     // © daemon_n
     // удаляем лишнюю логику при скрытой битве
     _PI->WriteLoHook(0x0767644, WoG__WereWolfAction);
+    // © daemon_n
+    // отключение сообщения с нанесением урона при его блокировании Драколичами или прочими абилками
+    _PI->WriteLoHook(0x071C6CF, CrExpBon_StackBlock_DracolichBlock);
+    _PI->WriteHiHook(0x0469670, SPLICE_, EXTENDED_, THISCALL_, BattleMgr_AttackingLogMessage);
     // патчи без Tiphon.dll
     if (!TIPHON)
     {
         // корректировка WoG ненависти существ
         // добавляем и существ 8-го уровня
         _PI->WriteLoHook(0x766E4E, Y_SetWogHates);
+
+        // восстанавливаем двойную атаку Фанатикам Войны
+        o_CreatureInfo[CID_WAR_ZEALOT].doubleAttack = true;
+        // установка флага "король1" для горынычей, так как они чудовища 7-го уровня
+        o_CreatureInfo[CID_GORYNYCH].king1 = true;
 
         // удаляем иммунитеты к огню у призраков
         o_CreatureInfo[CID_GHOST].fireImmunity = false;
