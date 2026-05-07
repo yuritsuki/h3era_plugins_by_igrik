@@ -1782,7 +1782,7 @@ NOALIGN struct _BattleMgr_ : _Struct_
   _Def_* currentSpellDef;         // +78568
   _int32_ currentSpellID;         // +78572
   _int32_ currentSpellDefFrame;   // +78576
-  _int32_ numShootingTowers;      // +78580
+  _int32_ siegeKind2;             // +78580
   _int32_ isBattleOver;           // +78584
   _Dlg_* dlg;                     // +78588
   _int32_ bCombatShowIt;          // +78592 
