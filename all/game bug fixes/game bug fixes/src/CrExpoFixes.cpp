@@ -393,48 +393,41 @@ struct
     _Hero_ *hero = nullptr;
     _Army_ armyCopy;
 
-} armyUpgrader;
-// хук перед самим улучшением армий
-_LHF_(AI_enter_town_before_creatures_upgrade)
-{
-    // если включён опыт существ
-    const BOOL stackExpIsEnabled = IntAt(0x2772730);
-    if (stackExpIsEnabled)
+  public:
+    void BeforeUpgrade(_Hero_ *targetHero)
     {
-        _Hero_ *targetHero = reinterpret_cast<_Hero_ *>(c->edi);
-        armyUpgrader.enabled = TRUE;
-        armyUpgrader.hero = targetHero;
-        memcpy(&armyUpgrader.armyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии героя до улучшения
+        if (enabled = IntAt(0x2772730)) // если включён опыт существ
+        {
+            hero = targetHero;
+            memcpy(&armyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии героя до улучшения
+        }
     }
-    return EXEC_DEFAULT;
-}
-// хук после самого улучшения армий
-_LHF_(AI_enter_town_after_creatures_upgrade)
-{
-    if (armyUpgrader.enabled)
-    {
-        if (memcmp(&armyUpgrader.armyCopy, &armyUpgrader.hero->army, sizeof(_Army_)) == 0)
-            return EXEC_DEFAULT; // если армия не изменилась, то не нужно ничего делать
 
+    void AfterUpgrade()
+    {
+        if (!enabled)
+            return;
+
+        if (memcmp(&armyCopy, &hero->army, sizeof(_Army_)) == 0)
+        {
+            enabled = FALSE;
+            return; // если армия не изменилась, то не нужно ничего делать
+        }
         _CrExpo_::UniData data{};
-        data.hero.id = armyUpgrader.hero->id;
+        data.hero.id = hero->id;
         _CrExpo_ *targetArmyExp[7]{};
         GetArmyExperience(CE_HERO, data, targetArmyExp);
         for (size_t i = 0; i < 7; i++)
         {
-            const int oldType = armyUpgrader.armyCopy.type[i];
-            const int newType = armyUpgrader.hero->army.type[i];
-
-            if (armyUpgrader.armyCopy.count[i] > 0 && armyUpgrader.hero->army.count[i] > 0 && oldType != newType)
+            const int oldType = armyCopy.type[i];
+            const int newType = hero->army.type[i];
+            if (armyCopy.count[i] > 0 && hero->army.count[i] > 0 && oldType != newType)
             {
-
                 int newExp = 0;
-
                 if (targetArmyExp[i])
                 {
                     const int oldExp = targetArmyExp[i]->experience; // сохраняем опыт, если он был
                     targetArmyExp[i]->Clear();                       // если тип существа изменился, то опыт обнуляется
-
                     if (oldExp)
                     {
                         newExp = static_cast<int>(static_cast<float>(oldExp) *
@@ -442,15 +435,31 @@ _LHF_(AI_enter_town_after_creatures_upgrade)
                                                          oldType)); // получение мультипликатора опыта при улучшении
                     }
                 }
-
                 data.hero.slot = i;
                 // создаём новый слот с типом существа после улучшения
-                const int offset =
-                    _CrExpo_::SetNewAndClamp(CE_HERO, data, newType, armyUpgrader.hero->army.count[i], newExp);
+                const int offset = _CrExpo_::SetNewAndClamp(CE_HERO, data, newType, hero->army.count[i], newExp);
             }
         }
     }
+} armyUpgrader;
+// хук перед самим улучшением армий
+_LHF_(AI_enter_town_before_creatures_upgrade)
+{
+    armyUpgrader.BeforeUpgrade(reinterpret_cast<_Hero_ *>(c->edi));
     return EXEC_DEFAULT;
+}
+// хук после самого улучшения армий
+_LHF_(AI_enter_town_after_creatures_upgrade)
+{
+    armyUpgrader.AfterUpgrade();
+    return EXEC_DEFAULT;
+}
+// хук при улучшения армии ИИ-героя в форте на холме
+void __stdcall AI_AdvMgr_HillFort(HiHook *h, _Hero_ *targetHero)
+{
+    armyUpgrader.BeforeUpgrade(targetHero);
+    CALL_1(void, __thiscall, h->GetDefaultFunc(), targetHero);
+    armyUpgrader.AfterUpgrade();
 }
 
 // покупка существа во городском жилище жилище
@@ -706,11 +715,14 @@ void CrExpoFixes(PatcherInstance *_PI)
         // забрать Армию из родного города ИИ-героем (если есть очки передвижения)
         _PI->WriteHiHook(0x0525985, CALL_, EXTENDED_, THISCALL_, AI_Player_Hero_ManageArmyInTown);
 
-        // хук перед самим улучшением армий
+        // хук перед улучшением армии ИИ-героя в городе
         _PI->WriteLoHook(0x0525A3C, AI_enter_town_before_creatures_upgrade);
 
-        // хук после самого улучшения армий
+        // хук после улучшения армии ИИ-героя в городе
         _PI->WriteLoHook(0x0525B90, AI_enter_town_after_creatures_upgrade);
+
+        // хук при улучшения армии ИИ-героя в форте на холме
+        _PI->WriteHiHook(0x0528090, SPLICE_, EXTENDED_, THISCALL_, AI_AdvMgr_HillFort);
 
         // покупка существа в городском жилище
         _PI->WriteHiHook(0x0428580, SPLICE_, EXTENDED_, THISCALL_, AI_Town_BuyCreatures);
