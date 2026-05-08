@@ -151,7 +151,7 @@ _LHF_(NPC_CalculatePrimarySkills)
     _Npc_ *npc = reinterpret_cast<_Npc_ *>(c->ecx);
     if (npc && npc->secondary_skills[c->eax] < 2 && npc->HasArtifact(155))
     {
-        c->return_address = 0x769556; //[jumping directly to the calculation of bonuses from the ring, bypassing the
+        c->return_address = 0x769556; // jumping directly to the calculation of bonuses from the ring, bypassing the
                                       // addition of standard bonuses]
         return NO_EXEC_DEFAULT;
     }
@@ -160,16 +160,16 @@ _LHF_(NPC_CalculatePrimarySkills)
 }
 
 // @ daemon_n
-// фикс WoG бага, когда командиры призывают боевые машины в банках существ
+// фикс WoG бага, когда командиры призывают боевые машины в банках существ и баллисту в качестве защитника города
 _LHF_(WoG_CombatStart_SummonNPC)
 {
-    // если призываемый стек - боевое существо
-    if (const auto *mgr = *reinterpret_cast<_BattleMgr_ **>(c->ebp + 0x8))
+    const auto *mgr = *reinterpret_cast<_BattleMgr_ **>(c->ebp + 0x8);
+
+    if (mgr->isBank                                             // если банк
+        || mgr->town && mgr->siegeKind2 && IntAt(c->ebp + 0x10) // или и город, и со стенами, и это защитник,
+               && h->GetAddress() == 0x76B97B)                  // и пытается поместить баллисту
     {
-        if (mgr->isBank)
-        {
-            IntAt(c->ebp - 0xC) = 1;
-        }
+        IntAt(c->ebp - 0xC) = 1;
     }
     return EXEC_DEFAULT;
 }
