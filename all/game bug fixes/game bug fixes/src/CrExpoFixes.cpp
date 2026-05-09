@@ -288,7 +288,7 @@ static void DebugArmy(const char *armyName, const _Army_ *army, _CrExpo_ **crexp
     }
     o_MsgBox((char *)msg.c_str());
 }
-inline static void DebugHero(const _Hero_ *hero, const int withExp = true)
+inline static void DebugHero(const _Hero_ *hero, const char *name = nullptr, const int withExp = true)
 {
 #ifdef _DEBUG
 
@@ -305,8 +305,11 @@ inline static void DebugHero(const _Hero_ *hero, const int withExp = true)
         basePlace.hero.id = hero->id;
         GetArmyExperience(CE_HERO, basePlace, crexps);
     }
-
-    DebugArmy("Hero Army", &hero->army, p_crexps);
+    if (!name)
+    {
+        name = "Hero Army";
+    }
+    DebugArmy(name, &hero->army, p_crexps);
 #endif // _DEBUG
 }
 
@@ -465,7 +468,7 @@ void __stdcall AI_Player_Hero_ManageArmyInTown(HiHook *h, DWORD *aiData, _Hero_ 
     // если включён опыт существ
     const BOOL stackExpIsEnabled = IntAt(0x2772730);
 
-    DebugHero(targetHero);
+    // DebugHero(targetHero, "AI_Player_Hero_ManageArmyInTown");
 
     if (stackExpIsEnabled)
     {
@@ -512,7 +515,7 @@ void __stdcall AI_Player_Hero_ManageArmyInTown(HiHook *h, DWORD *aiData, _Hero_ 
         RemapArmyFromPool(pool, poolSize, town->GetUpArmy(), sourceArmyType, sourceArmyData);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
-    DebugHero(targetHero);
+    // DebugHero(targetHero);
 }
 
 struct
@@ -529,7 +532,7 @@ struct
             hero = targetHero;
             memcpy(&armyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии героя до улучшения
         }
-        DebugHero(targetHero);
+        // DebugHero(targetHero, "BeforeUpgrade");
     }
 
     void AfterUpgrade()
@@ -569,7 +572,7 @@ struct
                 const int offset = _CrExpo_::SetNewAndClamp(CE_HERO, data, newType, hero->army.count[i], newExp);
             }
         }
-        DebugHero(hero);
+        // DebugHero(hero, "AfterUpgrade");
     }
 } armyUpgrader;
 // хук перед самим улучшением армий
@@ -595,6 +598,10 @@ void __stdcall AI_AdvMgr_HillFort(HiHook *h, _Hero_ *targetHero)
 // покупка существа во городском жилище жилище
 void __stdcall AI_Town_BuyCreatures(HiHook *h, DWORD _this, _Town_ *town)
 {
+
+    // DebugHero(o_GameMgr->GetHero(town->up_hero_id), "AI_Town_BuyCreatures up_hero_id");
+    // DebugHero(o_GameMgr->GetHero(town->down_hero_id), "AI_Town_BuyCreatures down_hero_id");
+
     const BOOL stackExpIsEnabled = IntAt(0x2772730);
     if (stackExpIsEnabled)
     {
@@ -614,7 +621,7 @@ void __stdcall AI_Town_BuyCreatures(HiHook *h, DWORD _this, _Town_ *town)
         {
             targetArmyData.hero.id = town->up_hero_id; // герой-защитник
             targetArmyType = CE_HERO;
-            DebugHero(o_GameMgr->GetHero(town->up_hero_id));
+            // DebugHero(o_GameMgr->GetHero(town->up_hero_id), "AI_Town_BuyCreatures");
         }
         else
         {
@@ -640,7 +647,7 @@ void __stdcall AI_H3Hero_BuyDwellingCreatures(HiHook *h, _Hero_ *targetHero, _Dw
     if (stackExpIsEnabled)
     {
         memcpy(&targetArmyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии города до обмена
-        DebugHero(targetHero);
+        // DebugHero(targetHero, "AI_H3Hero_BuyDwellingCreatures");
     }
 
     CALL_2(void, __fastcall, h->GetDefaultFunc(), targetHero, dwelling);
@@ -657,14 +664,14 @@ void __stdcall AI_H3Hero_BuyDwellingCreatures(HiHook *h, _Hero_ *targetHero, _Dw
         PoolItem pool[7];
         const int poolSize = BuildPool(pool, targetArmyCopy, targetArmyExp);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
-        DebugHero(targetHero);
+        // DebugHero(targetHero, "AI_H3Hero_BuyDwellingCreatures");
     }
 }
 
 // корректировка опыта для ИИ при присоединении одного существа извне
 void __stdcall AI_H3Hero_JoinOneCreature(HiHook *h, _Hero_ *targetHero, const int creatureId, WORD monNum)
 {
-    DebugHero(targetHero);
+    //   DebugHero(targetHero, "AI_H3Hero_JoinOneCreature");
 
     const BOOL stackExpIsEnabled = IntAt(0x2772730);
     if (stackExpIsEnabled)
@@ -687,7 +694,7 @@ void __stdcall AI_H3Hero_JoinOneCreature(HiHook *h, _Hero_ *targetHero, const in
         const int poolSize = BuildPool(pool, targetArmyCopy, targetArmyExp);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
-    DebugHero(targetHero);
+    // DebugHero(targetHero, "AI_H3Hero_JoinOneCreature");
 }
 // обмен армиями между ИИ-героем и гарнизоном
 void __stdcall AI_H3Hero_VisitGarrison(HiHook *h, _Hero_ *targetHero, _H3Garrison_ *sourceGarrison)
@@ -695,7 +702,7 @@ void __stdcall AI_H3Hero_VisitGarrison(HiHook *h, _Hero_ *targetHero, _H3Garriso
     // если включе опыт существ
     const BOOL applyChangesToAI =
         IntAt(0x2772730) && sourceGarrison->armyRemovable && sourceGarrison->owner == targetHero->owner_id;
-    DebugHero(targetHero);
+    // DebugHero(targetHero, "AI_H3Hero_VisitGarrison");
     if (applyChangesToAI)
     {
         memcpy(&sourceArmyCopy, &sourceGarrison->army, sizeof(_Army_)); // сохраняем данные армии гарнизона до обмена
@@ -727,7 +734,7 @@ void __stdcall AI_H3Hero_VisitGarrison(HiHook *h, _Hero_ *targetHero, _H3Garriso
         RemapArmyFromPool(pool, poolSize, &sourceGarrison->army, CE_HORN, sourceArmyData);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
-    DebugHero(targetHero);
+    // DebugHero(targetHero, "AI_H3Hero_VisitGarrison");
 }
 
 // корректировка при обмене армиями между двумя ИИ-Героями. Работает, если есть 2 героя
@@ -740,7 +747,7 @@ void __stdcall AI_ArmyExchanging_ExchangeArmy(HiHook *h, DWORD *aiData, _Hero_ *
         memcpy(&sourceArmyCopy, sourceArmy, sizeof(_Army_));        // сохраняем данные армии визитёра до обмена
         memcpy(&targetArmyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии источника до обмена
     }
-    DebugHero(targetHero);
+    // DebugHero(targetHero);
 
     CALL_5(void, __thiscall, h->GetDefaultFunc(), aiData, targetHero, sourceArmy, sourceHero, hasAlliance);
 
@@ -765,7 +772,7 @@ void __stdcall AI_ArmyExchanging_ExchangeArmy(HiHook *h, DWORD *aiData, _Hero_ *
         RemapArmyFromPool(pool, poolSize, sourceArmy, CE_HERO, sourceArmyData);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
-    DebugHero(targetHero);
+    // DebugHero(targetHero);
 }
 
 // помещение героя на карту:
@@ -780,7 +787,7 @@ void __stdcall H3Hero_PutOnMap(HiHook *h, _Hero_ *targetHero, const int playerId
     {
         memcpy(&targetArmyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии города до обмена
     }
-    DebugHero(targetHero);
+    // DebugHero(targetHero, "H3Hero_PutOnMap");
 
     CALL_4(void, __thiscall, h->GetDefaultFunc(), targetHero, playerId, pos, resetFlags);
 
@@ -798,7 +805,7 @@ void __stdcall H3Hero_PutOnMap(HiHook *h, _Hero_ *targetHero, const int playerId
         const int poolSize = BuildPool(pool, targetArmyCopy, targetArmyExp);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
-    DebugHero(targetHero);
+    // DebugHero(targetHero, "H3Hero_PutOnMap");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
