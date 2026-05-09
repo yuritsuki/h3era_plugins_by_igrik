@@ -3838,8 +3838,11 @@ NOALIGN struct _Npc_
  /* inline char* GetText_FromERM(int ptr_String, int* length)    {int i = 0;  return CALL_3(char*, __cdecl, 0x73DF05, ptr_String, 0, length);} */
  inline char* GetText_FromZVar(int z_num) {return CALL_3(char*, __cdecl, 0x73DF05, 0x9271E8 + 512*z_num, 1, 0);}
  inline char* GetText_FromERT(int z_num)  {return CALL_1 (char*, __cdecl, 0x776620, z_num);}
- 
 
+ inline INT Clamp(INT32 min_value, INT32 value, INT32 max_value)
+ {
+     return CALL_3(INT32 &, __fastcall, 0x4E6800, &min_value, &value, &max_value);
+ }
 
 // структура опыта стека
  #define o_CrExpo_ ((_CrExpo_*)0x860550)  
@@ -3927,10 +3930,30 @@ NOALIGN struct _Npc_
      {
          return CALL_1(void, __thiscall, 0x0718377, this);
      };
+     inline void Clamp()
+     {
+         experience = ::Clamp(0, experience, GetCreatureExpLimit(flags.creatureId));
+     }
+     inline void Clamp(const int monId)
+     {
+         experience = ::Clamp(0, experience, GetCreatureExpLimit(monId));
+     }
      static inline int SetNewAndClamp(const eExpType type, const UniData data, const int creatureId,
                                       const int creaturesNum, const int expo)
      {
          return CALL_5(int, __cdecl, 0x0718AD0, type, data.uniData, creatureId, creaturesNum, expo);
+     }
+     static inline int GetCreatureExpByRankAndExp(const int monId, const int exp, const int additional)
+     {
+         return CALL_3(int, __cdecl, 0x0717E40, monId, exp, additional);
+     }
+     static inline int GetCreatureExpLimit(const int monId)
+     {
+         return CALL_1(int, __cdecl, 0x0727E20, monId);
+     }
+     static inline float GetCreatureUpgradeMultiplier(const int monId)
+     {
+         return CALL_1(float, __cdecl, 0x0727E00, monId);
      }
  };
 
