@@ -40,12 +40,15 @@ _int_ __stdcall Y_AIMgr_Stack_MinRoundToReachHex(HiHook *hook, _dword_ this_, _B
 // фикс бага WoG -- для ИИ не был добавлен рассчёт кавалерийского бонуса для новых существ и SE:
 _LHF_(FixAI_CavalryBonus) // 0x0436200
 {
-    const int atkStack = c->ecx; // поместим нападающий стек в ebx для ф-ции ниже
+    const _BattleStack_ *atkStack =
+        reinterpret_cast<_BattleStack_ *>(c->ecx); // поместим нападающий стек в ebx для ф-ции ниже
+    const _BattleStack_ *defStack =
+        *reinterpret_cast<_BattleStack_ **>(c->esi + 8); // поместим стек защитника в edi для ф-ции ниже
 
-    int result = reinterpret_cast<_BattleStack_ *>(c->ecx)->creature_id;
+    int result = atkStack->creature_id;
     __asm {
         mov ebx, atkStack // attacker
-        mov edi, 0 // второй аргумент
+        mov edi, defStack // defender
         mov eax, 0x075D7F5 // вызов ф-ции вог, на случай, если кто хочет её хукнуть
         call eax
         mov result, eax
