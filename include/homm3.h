@@ -3945,7 +3945,7 @@ NOALIGN struct _Npc_
      }
      static inline int GetCreatureExpByRankAndExp(const int monId, const int exp, const int additional)
      {
-         return CALL_3(int, __cdecl, 0x0717E40, monId, exp, additional);
+         return CALL_3(int, __cdecl, 0x0727E40, monId, exp, additional);
      }
      static inline int GetCreatureExpLimit(const int monId)
      {

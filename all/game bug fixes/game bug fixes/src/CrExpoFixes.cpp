@@ -33,6 +33,45 @@ void __stdcall CrExpoSet_AddExpo(HiHook *h, _Hero_ *hero, int expToAdd, const in
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+// ИСПРАВЛЕНИЕ ОПЫТА ПРИ ПРИСОЕДИНЕНИИ СУЩЕСТВА К АРМИИ ГЕРОЯ ЧЕРЕЗ ДИАЛОГ ПРИСОЕДИНЕНИЯ
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static _Dlg_ *__stdcall JoinArmyDlgCtor(HiHook *h, _Dlg_ *this_, _Hero_ *hero, _Army_ *army, int a4)
+{
+
+    _Mine_ mine;
+    _CrExpo_::UniData data;
+
+    mine.owner = hero->owner_id;
+    mine.army = *army;
+    data.mine.x = mine.x = hero->x;
+    data.mine.y = mine.y = hero->y;
+    data.mine.z = mine.z = hero->z;
+    auto minesVector = o_GameMgr->Offset(0x4E388);
+    auto lastMine = o_GameMgr->Offset(0x4E390);
+    CALL_4(void, __thiscall, 0x4D0870, (char *)o_GameMgr + 0x4E388, IntAt((char *)o_GameMgr + 0x4E390), 1, &mine);
+
+    for (size_t i = 0; i < 7; i++)
+    {
+        if (army->type[i] > -1 && army->count[i] > 1)
+        {
+            data.mine.slot = i;
+            _CrExpo_::SetNewAndClamp(eExpType::CE_MINE, data, army->type[i], army->count[i], 0);
+            auto expo = _CrExpo_::Find(eExpType::CE_MINE, data);
+            expo->experience = 12222;
+        }
+    }
+
+    // o_GameMgr->map_header
+
+    auto result = CALL_4(_Dlg_ *, __thiscall, h->GetDefaultFunc(), this_, hero, army, a4);
+
+    return result;
+}
+
+// © daemon_n
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 // ИСПРАВЛЕНИЕ РАССЧЁТА ОПЫТА ПРИ ПЕРЕПОЛНЕНИИ INT32
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -135,8 +174,8 @@ static void __cdecl ERM_EX_ValidateSlot(HiHook *h, _CrExpo_ *this_, const int ex
     default:
         return;
     }
-    if (dstMonId >= 0)
-        this_->Clamp(dstMonId);
+    // if (dstMonId >= 0)
+    //   this_->Clamp(dstMonId);
 }
 
 _LHF_(WoG_CrExpo_Recalc)
@@ -820,6 +859,10 @@ void CrExpoFixes(PatcherInstance *_PI)
     _PI->WriteCodePatch(0x07176D1, "%n", 15); // NOPs вместо повтороного вычисления максимального опыта существа
 
     // ИСПРАВЛЕНИЯ
+
+    // © daemon_n
+    // исправление ошибки с ненайденным опытом существа при открытии диалога присоединения армии к герою
+    //  _PI->WriteHiHook(0x05D1620, CALL_, EXTENDED_, THISCALL_, JoinArmyDlgCtor); // добавить опыт существам
 
     // © daemon_n
     // Ошибка бонуса опыта существ для члена "модификатор", где имеем некорректный тип данных (знаковый) для структуры:
