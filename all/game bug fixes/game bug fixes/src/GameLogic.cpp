@@ -177,29 +177,9 @@ _LHF_(Y_FixBattle_StackStepBack)
     return EXEC_DEFAULT;
 }
 
-// фикс: командиры, имеющие флаг стрельбы и двойной атаки, в рукопашной бъют один раз.
-// Исправим это, ибо они уникальны (03/12/2023)
-_LHF_(Y_NPC_FixDoubleAttackOnMelle)
+bool __stdcall WoG_OnMapRestartCrtraitsReset(HiHook *hook, const BOOL isWogMap)
 {
-    _BattleStack_ *stack = (_BattleStack_ *)c->edi;
-    // CF_DOUBLEATTACK уже проверена к этому моменту
-    // т.е. мы гарантированно знаем, что стек имеет двойную атаку
-    if (stack->creature.flags & BCF_CAN_SHOOT)
-    {
-        if (Era::IsCommanderId(stack->creature_id))
-        {
-            // может иметь двойную атаку
-            c->return_address = 0x441BB1;
-        }
-        // НЕ может иметь двойную атаку
-        else
-            c->return_address = 0x441C01;
-    }
-    // может иметь двойную атаку
-    else
-        c->return_address = 0x441BB1;
-
-    return NO_EXEC_DEFAULT;
+    return 1;
 }
 
 // убираем клонов из показа в диалоге результатов битвы
@@ -1069,8 +1049,8 @@ void GameLogic(PatcherInstance *_PI)
     _PI->WriteDword(0x678344 + 22 * 4, 0x3dcccccd); // float 0.1
 
     // фикс WoG'a
-    // командиры, имеющие флаг стрельбы и двойной атаки, в рукопашной бъют один раз. Исправим это, ибо они уникальны
-    _PI->WriteLoHook(0x441BAA, Y_NPC_FixDoubleAttackOnMelle);
+
+    _PI->WriteHiHook(0x070561A, CALL_, EXTENDED_, CDECL_, WoG_OnMapRestartCrtraitsReset);
 
     // © daemon_n
     // фикс ERM команды CB:M: при проверке/установке типа и количество существ значение ограничивалось 196 (Драколич)
@@ -1165,7 +1145,8 @@ void GameLogic(PatcherInstance *_PI)
         0x005A62AA, // ray attack animation
         0x004626CF, // prebattle wav
         0x00462C3A, // combat music
-        0x004EB256  // creature info dlg def animation
+        0x004EB256, // creature info dlg monster def animation
+        0x004EB3CC  // creature info dlg machine def animation
     };
     for (DWORD addr : lowHighDrawAnimationRandomFunctionAddresses)
     {
