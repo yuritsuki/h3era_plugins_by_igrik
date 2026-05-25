@@ -42,6 +42,10 @@ _LHF_(FixAI_CavalryBonus) // 0x0436200
 {
     const _BattleStack_ *atkStack =
         reinterpret_cast<_BattleStack_ *>(c->ecx); // поместим нападающий стек в ebx для ф-ции ниже
+    if (atkStack->creature.flyer)
+    {
+        return EXEC_DEFAULT;
+    }
     const _BattleStack_ *defStack =
         *reinterpret_cast<_BattleStack_ **>(c->esi + 8); // поместим стек защитника в edi для ф-ции ниже
 
@@ -56,6 +60,86 @@ _LHF_(FixAI_CavalryBonus) // 0x0436200
     c->ecx = result;               // во время возврата должен быть уже id существа, а не stack*
     c->return_address = 0x0436208; // возвращаем "Чемпиона" для последующей проверки
     return NO_EXEC_DEFAULT;
+}
+// У героя есть артефакты, позволяющие игнорировать препятствия при стрельбе.
+_bool_ hero_has_shoot_obst_arts;
+
+// Герой врага.
+_Hero_ *AI_VB_SetStacks_EnemyHero;
+
+// Коэффициент ценности.
+double AI_VB_SetStacks_val_coeff;
+
+// При расчёте ИИ-ИИ битвы при нападении защищающегося исправляем параметры вычисления урона.
+int __stdcall LoHook_AICalcBattle_DefAtt_CalcDamageVal(LoHook *h, HookContext *c)
+{
+    // Защищающийся бьёт не всеми, но его стрелки не заблокированны.
+    c->eax = CALL_3(_int32_, __thiscall, 0x426390, c->edi, IntAt(c->ebp - 8), FALSE);
+
+    // Пропускаем стандартное вычисление.
+    c->return_address = 0x426D22;
+
+    return NO_EXEC_DEFAULT;
+}
+// При расчёте ИИ-ИИ битвы при нападении защищающегося исправляем параметры нанесения урона.
+int __stdcall LoHook_AICalcBattle_DefAtt_MakeDamage(LoHook *h, HookContext *c)
+{
+    // Защищающийся получает урон только по добежавшим.
+    c->eax = CALL_4(_int32_, __thiscall, 0x426170, c->edi, c->eax, 1, IntAt(c->ebp - 8));
+
+    // Пропускаем стандартное нанесение.
+    c->return_address = 0x426D57;
+
+    return NO_EXEC_DEFAULT;
+}
+// Перед настройкой стеков при расчёте битвы инициализируем некоторые значения.
+void __stdcall HiHook_AICalcBattle_SetStacks(HiHook *h, _Struct_ *this_, double val_coeff, _Hero_ *enemy_hero)
+{
+    // Артефакты, позволяющие игнорировать препятствия при стрельбе.
+    hero_has_shoot_obst_arts =
+        this_->Field<_Hero_ *>(36) && (this_->Field<_Hero_ *>(36)->DoesWearArtifact(AID_GOLDEN_BOW) ||
+                                       this_->Field<_Hero_ *>(36)->DoesWearArtifact(AID_BOW_OF_THE_SHARPSHOOTER));
+
+    AI_VB_SetStacks_EnemyHero = enemy_hero;
+    AI_VB_SetStacks_val_coeff = val_coeff;
+
+    CALL_4(void, __thiscall, h->GetDefaultFunc(), this_, *(_dword_ *)&val_coeff, *((_dword_ *)&val_coeff + 1),
+           enemy_hero);
+}
+// При расчёте ИИ-ИИ битвы при взятии модификатора стрелковой атаки учитываем и собственные 100% урона стека (баг SoD).
+_float_ __stdcall HiHook_AICalcBattle_GetHeroShootingModif(HiHook *h, _Hero_ *this_)
+{
+    // Добавляем 1.0.
+    return 1.0 + CALL_1(_float_, __thiscall, h->GetDefaultFunc(), this_);
+}
+
+// Учитываем всех стреляющих сквозь препятствия стрелков (а не только архимагов), а так же соответствующие артефакты.
+int __stdcall LoHook_AICalcBattle_Check_ObstacklesShooters(LoHook *h, HookContext *c)
+{
+    const int monId = IntAt(c->ebp - 4);
+    if (hero_has_shoot_obst_arts)
+    {
+        c->return_address = 0x424429;
+        return NO_EXEC_DEFAULT;
+    }
+    else
+    {
+        switch (monId)
+        {
+        case CID_MAGE:
+        case CID_ENCHANTER:
+        case CID_SHARPSHOOTER:
+        case CID_ARROW_TOWER:
+        case CID_ARCTIC_SHARPSHOOTER:
+        case CID_LAVA_SHARPSHOOTER:
+            c->return_address = 0x424429;
+            return NO_EXEC_DEFAULT;
+        default:
+            break;
+        }
+    }
+
+    return EXEC_DEFAULT;
 }
 
 // Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (1).
@@ -129,10 +213,30 @@ void AIFixes(PatcherInstance *_PI)
     _PI->WriteByte(0x41EFA6 + 2, 4);
     _PI->WriteHexPatch(0x41EFAC, "75 16"); // jnz 0x41EFC4
 
+    // Снимаем ограничение для ИИ в 8 героев на команду
+    // _PI->WriteHexPatch(0x431392, "EB");
+
     // © daemon_n
     // фикс бага WoG -- для ИИ не был добавлен рассчёт кавалерийского бонуса для новых существ и SE:
     _PI->WriteLoHook(0x0436200, FixAI_CavalryBonus);
 
+    // Исправление багов ИИ-ИИ битвы.
+
+    // При расчёте ИИ-ИИ битвы при нападении защищающегося исправляем параметры вычисления урона.
+    _PI->WriteLoHook(0x426D17, LoHook_AICalcBattle_DefAtt_CalcDamageVal);
+
+    // При расчёте ИИ-ИИ битвы при нападении защищающегося исправляем параметры нанесения урона.
+    _PI->WriteLoHook(0x426D4B, LoHook_AICalcBattle_DefAtt_MakeDamage);
+
+    // Перед настройкой стеков при расчёте битвы инициализируем некоторые значения.
+    _PI->WriteHiHook(0x424120, SPLICE_, EXTENDED_, THISCALL_, HiHook_AICalcBattle_SetStacks);
+
+    // При расчёте ИИ-ИИ битвы при взятии модификатора стрелковой атаки учитываем и собственные 100% урона стека (баг
+    // SoD).
+    _PI->WriteHiHook(0x42426D, CALL_, EXTENDED_, THISCALL_, HiHook_AICalcBattle_GetHeroShootingModif);
+
+    // Учитываем всех стреляющих сквозь препятствия стрелков (а не только архимагов).
+    _PI->WriteLoHook(0x424412, LoHook_AICalcBattle_Check_ObstacklesShooters);
     return;
     //// + Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (баг SoD).
     //_PI->WriteLoHook(0x42C778, LoHook_FixAngelicAllianceAI1);
