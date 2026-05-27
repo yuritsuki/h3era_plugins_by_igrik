@@ -83,6 +83,17 @@ void __stdcall H3CreatureInfoDlg_ShowRMC(HiHook *hook, _Dlg_ *dlg)
         rightClickDlgProc->Undo();
 }
 
+// отключение зацикливания при зажатии хоткеев
+
+DWORD __stdcall DefButtonOnHotKey(HiHook *hook, _DlgButton_ *button, DWORD msg)
+{
+    if (button->state & 1) // isPressed
+    {
+        return 2;
+    }
+    return CALL_2(DWORD, __thiscall, hook->GetDefaultFunc(), button, msg);
+}
+
 void NativeDlgsImprovements(PatcherInstance *_PI)
 {
     // отображение фунционального портрета активного героя в диалоге черного рынка и торговца артефактами
@@ -94,4 +105,7 @@ void NativeDlgsImprovements(PatcherInstance *_PI)
     _PI->WriteHiHook(0x05F4B90, SPLICE_, EXTENDED_, THISCALL_, H3CreatureInfoDlg_ShowRMC);
     rightClickDlgProc = _PI->CreateLoHook(0x060306D, RMCdlgProc);
     rightClickDlgProc->Undo();
+
+    // отключение зацикливания при зажатии хоткеев
+    _PI->WriteHiHook(0x04562C7, CALL_, EXTENDED_, THISCALL_, DefButtonOnHotKey);
 }
