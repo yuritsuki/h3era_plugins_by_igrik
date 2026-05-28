@@ -652,7 +652,15 @@ _LHF_(HookAfterHDModInit)
 
     return EXEC_DEFAULT;
 }
+// При показе списка карт обновляем выбранную карту (баг SoD с пропаданием выбора игрока).
+void __stdcall HiHook_MapList_UpdateMap(HiHook *h, _Dlg_ *this_, _bool8_ rand_maps)
+{
+    // Показываем список карт.
+    CALL_2(void, __thiscall, h->GetDefaultFunc(), this_, rand_maps);
 
+    // Обновляем карту.
+    CALL_3(void, __thiscall, 0x5857D0, this_, this_->Field<_int32_>(884), FALSE);
+}
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 
@@ -791,6 +799,9 @@ void Graphics(PatcherInstance *_PI)
     _PI->WriteHiHook(0x051D810, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
     _PI->WriteHiHook(0x051DBE8, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
     _PI->WriteHiHook(0x051DE00, CALL_, EXTENDED_, CDECL_, CreaturePortraitText_sprintf);
+
+    // При показе списка карт обновляем выбранную карту (баг SoD с пропаданием выбора игрока).
+    _PI->WriteHiHook(0x587272, CALL_, EXTENDED_, THISCALL_, HiHook_MapList_UpdateMap);
 
     // исправление индекса слота в диалоге продажи артефактов
     // hd mod ранее ставил слот 9 вместе 18 ( что дублировало 9-й слот)
