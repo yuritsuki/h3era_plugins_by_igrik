@@ -644,6 +644,10 @@ thread_local PluginRNG g_pluginDrawRng, g_pluginAIRng /*, g_pluginDebugRng,*/ /*
 
 static void __stdcall BattleMgr_SetRandomSeed(HiHook *h, unsigned int seed)
 {
+    // исправляем значение настройки опции "каст заклинаний в автобитве", которая иногда может быть не равна 0 или 1,
+    // что ломает логику проверки в игре
+    IntAt(0x06987E8) = Clamp(0, IntAt(0x06987E8), 1);
+
     CALL_1(void, __thiscall, h->GetDefaultFunc(), seed);
     g_pluginDrawRng.srand(seed);
     g_pluginAIRng.srand(seed);
