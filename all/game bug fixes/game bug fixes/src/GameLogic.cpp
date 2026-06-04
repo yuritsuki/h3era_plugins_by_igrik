@@ -995,6 +995,81 @@ _LHF_(BattleMgr_TryToCastAutoSpell)
 
     return EXEC_DEFAULT;
 }
+int storedValue = 0;
+char storedWavName[13];
+struct SAMPLE2
+{
+    _Wav_ *wav;
+    HANDLE playSample;
+};
+
+__int64 __stdcall CombatStartSound_LoadAndPlay(HiHook *h, char *name)
+{
+    strncpy(storedWavName, name, sizeof(storedWavName) - 1);
+    storedWavName[sizeof(storedWavName) - 1] = '\0';
+
+    // CALL_3(void, __fastcall, 0x059A890, name, -1, 3);
+
+    return INT64(12);
+}
+void __stdcall CombatStartSound_WaitToPlay(HiHook *h, int timeToWait, _Wav_ *wav, int stopSounds)
+{
+
+    //    CALL_3(void, __fastcall, 0x059A890, storedWavName, -1, 3);
+   // CALL_3(void, __fastcall, 0x059A890, wav->name, -1, 3);
+    //   CALL_3(void, __thiscall, h->GetDefaultFunc(), timeToWait, wav, stopSounds);
+}
+void __stdcall PlayCombatMusicAtStart(HiHook *h, _SoundMgr_ *snd, char *name, int atStart, int loop)
+{
+
+    //storedValue = snd->f0[0x8C];
+    //snd->f0[0x8C] = 0;
+    auto currentStream = IntAt(0x069FED8);
+    if (currentStream)
+    {
+        CALL_1(int, __stdcall, IntAt(0x0063A42C), currentStream);
+        IntAt(0x069FED8) = 0;
+    }
+
+    //  CALL_4(void, __thiscall, 0x059A090, snd, 0);
+}
+_LHF_(Dlg_BattleResults_StopVictoryMusic)
+{
+
+    /* o_SoundMgr->f0[0x8C] = 0;
+     o_SoundMgr->f0[0x8D] = 0;
+     o_SoundMgr->f0[0x8E] = 0;
+     o_SoundMgr->f0[0x8F] = 0;*/
+    //  CALL_1(void, __thiscall, 0x059AF00, o_SoundMgr);
+    //  CALL_4(void, __thiscall, 0x059AFB0, o_SoundMgr, "", 0, 0);
+
+    // CALL_2(void, __thiscall, 0x059A090, o_SoundMgr, 1);
+    //  CALL_2(void, __thiscall, 0x059A090, o_SoundMgr,0);
+    //  //CALL_1(void, __thiscall, 0x059B310, o_SoundMgr);
+    //  o_SoundMgr->f0[0x8C] = 0;
+    //// Era::ExecErmCmd("MP:P0/0");
+    // storedValue = IntAt(0x06987A8 +8);
+    // if (true)
+    //{
+    // IntAt(0x06987A8 + 8) = 0;
+    //}
+    return EXEC_DEFAULT;
+}
+
+_LHF_(Dlg_BattleResults_End)
+{
+
+    //   o_SoundMgr->f0[0x8C] = storedValue;
+    // sprintf_s((char*)0x06A33F4, 260, "%s", "");
+    // sprintf_s((char*)0x06A32F0, 260, "%s", "");
+    // IntAt(0x06A33F4) = 0;
+    // CALL_1(void, __thiscall, 0x059B310, o_SoundMgr);
+    // CALL_2(void, __thiscall, 0x059A090, o_SoundMgr,1);
+    // CALL_1(void, __thiscall, 0x059B380, o_SoundMgr);
+    // Era::ExecErmCmd("MP:P0/0");
+    // o_SoundMgr->f0[0x8C] = storedValue;
+    return EXEC_DEFAULT;
+}
 
 // ##############################################################################################################################
 // ##############################################################################################################################
@@ -1132,6 +1207,9 @@ void GameLogic(PatcherInstance *_PI)
     _PI->WriteHiHook(0x0463606, CALL_, EXTENDED_, THISCALL_, BattleMgr_SetRandomSeed);
 
     DWORD lowHighDrawAnimationRandomFunctionAddresses[] = {
+        0x004626CF, // prebattle wav
+        0x00462C3A, // combat music start
+
         0x0047847D, // move and attack animation
         0x004789DB, // cast spell animation
         0x00478B4F, // walk animation
@@ -1140,17 +1218,22 @@ void GameLogic(PatcherInstance *_PI)
         0x00478E77, // retreat animation
         0x00478FEB, // surrender animation
         0x004794A6, // wall attack animation
-        0x004798AC, // battle bgein animation
+        0x004798AC, // battle begin animation
+
+        0x004961ED, // play wait animation (safe random)
+        0x00496246, // play wait animation (safe random)
+
+        0x004EB256, // creature info dlg monster def animation
+        0x004EB3CC, // creature info dlg machine def animation
+
+        0x005998F8, // combat music continue
         0x005A570C, // ray attack animation
         0x005A5788, // ray attack animation
         0x005A61F2, // ray attack animation
         0x005A6262, // ray attack animation
         0x005A6283, // ray attack animation
         0x005A62AA, // ray attack animation
-        0x004626CF, // prebattle wav
-        0x00462C3A, // combat music
-        0x004EB256, // creature info dlg monster def animation
-        0x004EB3CC  // creature info dlg machine def animation
+
     };
     for (DWORD addr : lowHighDrawAnimationRandomFunctionAddresses)
     {
@@ -1180,7 +1263,22 @@ void GameLogic(PatcherInstance *_PI)
     //{
     //     // _PI->WriteHiHook(addr, CALL_, EXTENDED_, FASTCALL_, DEBUG_Random);
     // }
+    // © daemon_n
 
+    //  _PI->WriteHiHook(0x04626EA, CALL_, EXTENDED_, THISCALL_, CombatStartSound_LoadAndPlay);
+    //_PI->WriteHiHook(0x0462C2B, CALL_, EXTENDED_, THISCALL_, CombatStartSound_WaitToPlay);
+
+    //// 0059AB30
+    //// отключение музыки победы после закрытия диалога результатов битвы
+    //_PI->WriteLoHook(0x0047724F, Dlg_BattleResults_StopVictoryMusic);
+    //_PI->WriteLoHook(0x004772FE, Dlg_BattleResults_StopVictoryMusic);
+    //// _PI->WriteLoHook(0x00477306, Dlg_BattleResults_End);
+    //_PI->WriteHiHook(0x00462C65, CALL_, EXTENDED_, THISCALL_, PlayCombatMusicAtStart);
+    //  _PI->WriteJmp(0x00462C30, 0x00462C6A); // start combat music play
+    // _PI->WriteJmp(0x00477219, 0x0047723A); // end combat music play
+    // _PI->WriteJmp(0x0462645, 0x00462652); // start combat music clear
+
+    //_PI->WriteByte(0x0046264B + 1, 0);
     if (!TIPHON)
     {
 
