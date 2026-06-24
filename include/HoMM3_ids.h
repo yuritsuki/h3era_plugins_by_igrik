@@ -1024,8 +1024,8 @@ enum eSpell : INT8
 
 // ID нажатых кнопок (Virtual Keys)
 // #define VK_SHIFT        16
-// #define VK_CTRL         17
-// #define VK_ALT          18
+#define VK_CTRL         17
+#define VK_ALT          18
 
 // #define VK_ESC          27
 // #define VK_ENTER        13

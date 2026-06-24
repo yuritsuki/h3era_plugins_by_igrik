@@ -41,10 +41,21 @@ static inline DWORD GetTime()
 {
     return CALL_0(DWORD, __stdcall, PtrAt(0x63A354));
 }
+struct MonDefInfo
+{
+    int id = -1;
+    DWORD defPtr = 0;
+} monDefInfo;
+
 _LHF_(RMCdlgProc)
 {
     auto dlg = *reinterpret_cast<_Dlg_ **>(c->ebp + 0x8);
-    auto dlgDef = DwordAt(dlg->Offset(0xB4)); // animation def
+    if (dlg->v_table[0] == 0x05F3EC0)
+    {
+        monDefInfo.defPtr = DwordAt(dlg->Offset(0xB4));
+        monDefInfo.id = IntAt(dlg->Offset(0x60));
+    }
+    auto dlgDef = monDefInfo.defPtr; // animation def
     if (dlgDef)
     {
         DWORD waitUntil = DwordAt(0x6989E8);
@@ -54,7 +65,7 @@ _LHF_(RMCdlgProc)
         {
             return EXEC_DEFAULT;
         }
-        const int id = IntAt(dlg->Offset(0x60));
+        const int id = monDefInfo.id;
         const bool isWarMachine = CALL_1(bool, __thiscall, 0x047AAB0, id);
 
         // рисуем следующий кадр анимации
@@ -70,17 +81,26 @@ _LHF_(RMCdlgProc)
     }
     return EXEC_DEFAULT;
 }
-
 Patch *rightClickDlgProc = nullptr;
-void __stdcall H3CreatureInfoDlg_ShowRMC(HiHook *hook, _Dlg_ *dlg)
+
+_LHF_(H3DwellingDlg_ShowRMC)
 {
-    if (dlg->v_table[0] == 0x05F3EC0)
+    monDefInfo.defPtr = c->eax;
+    monDefInfo.id = IntAt(c->ebp - 0x1C);
+    return EXEC_DEFAULT;
+}
+void __stdcall WndMgr__ShowRightClickDlg(HiHook *hook, DWORD wnd, _Dlg_ *dlg)
+{
+    if (dlg->v_table[0] == 0x05F3EC0 || dlg->v_table[0] == 0x0551AB0)
         rightClickDlgProc->Apply();
 
-    CALL_1(void, __thiscall, hook->GetDefaultFunc(), dlg);
+    CALL_2(void, __thiscall, hook->GetDefaultFunc(), wnd, dlg);
 
     if (rightClickDlgProc->IsApplied())
+    {
         rightClickDlgProc->Undo();
+        monDefInfo = {};
+    }
 }
 
 // отключение зацикливания при зажатии хоткеев
@@ -102,7 +122,9 @@ void NativeDlgsImprovements(PatcherInstance *_PI)
     _PI->WriteLoHook(0x05EE2B4, BlackMarketDlg__SetHint);
 
     // отображение анимации существ в диалогах с существами на ПКМ
-    _PI->WriteHiHook(0x05F4B90, SPLICE_, EXTENDED_, THISCALL_, H3CreatureInfoDlg_ShowRMC);
+    _PI->WriteHiHook(0x0603000, SPLICE_, EXTENDED_, THISCALL_, WndMgr__ShowRightClickDlg);
+    _PI->WriteLoHook(0x0551EBB, H3DwellingDlg_ShowRMC);
+
     rightClickDlgProc = _PI->CreateLoHook(0x060306D, RMCdlgProc);
     rightClickDlgProc->Undo();
 

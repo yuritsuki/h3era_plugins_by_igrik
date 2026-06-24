@@ -63,7 +63,10 @@ using std::string;
 #define _bool32_ _int32_
 
 // Логический (двойное слово).
-//#define _bool_ _bool32_
+#ifndef _bool_
+#define _bool_ _bool32_
+#endif // !_bool_
+
 
 // Целый (знаковое двойное слово).
 #define _int_ _int32_
