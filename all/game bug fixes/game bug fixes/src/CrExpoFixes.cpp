@@ -481,7 +481,7 @@ BOOL GetArmyExperience(const eExpType type, _CrExpo_::UniData baseData, _CrExpo_
     case CE_HERO:
         for (size_t i = 0; i < 7; i++)
         {
-            baseData.hero.slot = i;
+            baseData.hero.slot = static_cast<short>(i);
             crexps[i] = _CrExpo_::Find(CE_HERO, baseData);
         }
         break;
@@ -490,7 +490,7 @@ BOOL GetArmyExperience(const eExpType type, _CrExpo_::UniData baseData, _CrExpo_
     case CE_HORN:
         for (size_t i = 0; i < 7; i++)
         {
-            baseData.anyGarrison.slot = i;
+            baseData.anyGarrison.slot = static_cast<short>(i);
             crexps[i] = _CrExpo_::Find(type, baseData);
         }
         break;
@@ -606,7 +606,7 @@ struct
                                                          oldType)); // получение мультипликатора опыта при улучшении
                     }
                 }
-                data.hero.slot = i;
+                data.hero.slot = static_cast<short>(i);
                 // создаём новый слот с типом существа после улучшения
                 const int offset = _CrExpo_::SetNewAndClamp(CE_HERO, data, newType, hero->army.count[i], newExp);
             }

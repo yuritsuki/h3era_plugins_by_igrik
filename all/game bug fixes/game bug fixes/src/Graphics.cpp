@@ -387,19 +387,19 @@ int __stdcall LoHook_ArtSell_Add5Slot_ArtSellSelect(LoHook *h, HookContext *c)
         if (art_id > 0)
         {
             // Цена артефакта.
-            _float_ cost = o_ArtInfo[art_id].cost;
+            _float_ cost = static_cast<_float_>(o_ArtInfo[art_id].cost);
 
             // Цена ресурса.
             _int16_ res_cost = ((_int16_ *)0x68C4D2)[IntAt(0x6AAB34)];
 
             cost = cost * (((_float_ *)0x678370)[IntAt(0x6AAB00)]) / ((_float_)(double)res_cost);
-            if (cost < 1.0)
+            if (cost < 1.0f)
             {
-                cost = 1.0;
+                cost = 1.0f;
             }
 
             IntAt(0x6AAAE8) = 1;
-            IntAt(0x6AAB28) = ((_int_)(_int64_)(cost + 0.5));
+            IntAt(0x6AAB28) = ((_int_)(_int64_)(cost + 0.5f));
             IntAt(0x6AAAFC) = 1;
             IntAt(0x6AAB18) = 1;
 

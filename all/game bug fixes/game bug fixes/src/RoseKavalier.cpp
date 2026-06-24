@@ -106,7 +106,7 @@ _bool8_ GetCreatureCostGradeText(_dword_ dlg, _bool8_ rmc)
     // стереть 2 последних символа
     costtext.erase(costtext.end()-2, costtext.end());
     
-    sprintf(o_TextBuffer, "%s%s(%s)", ptrText, separator, (const char*)costtext.c_str());
+    sprintf(o_TextBuffer, "%s%s(%s)", (char*)ptrText, separator, (const char*)costtext.c_str());
     return true;
 }
 

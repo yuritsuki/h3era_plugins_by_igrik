@@ -110,7 +110,7 @@ void __stdcall HiHook_AICalcBattle_SetStacks(HiHook *h, _Struct_ *this_, double 
 _float_ __stdcall HiHook_AICalcBattle_GetHeroShootingModif(HiHook *h, _Hero_ *this_)
 {
     // Добавляем 1.0.
-    return 1.0 + CALL_1(_float_, __thiscall, h->GetDefaultFunc(), this_);
+    return 1.0f + CALL_1(_float_, __thiscall, h->GetDefaultFunc(), this_);
 }
 
 // Учитываем всех стреляющих сквозь препятствия стрелков (а не только архимагов), а так же соответствующие артефакты.

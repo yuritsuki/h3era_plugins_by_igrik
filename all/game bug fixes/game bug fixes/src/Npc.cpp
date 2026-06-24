@@ -97,7 +97,7 @@ int __stdcall get_Fight_Value_Hook(LoHook *h, HookContext *c)
     if (!hero)
         return EXEC_DEFAULT;
 
-    c->ecx += getAIValue_NPC(hero->id);
+    c->ecx += static_cast<int>(getAIValue_NPC(hero->id));
 
     return EXEC_DEFAULT;
 }
