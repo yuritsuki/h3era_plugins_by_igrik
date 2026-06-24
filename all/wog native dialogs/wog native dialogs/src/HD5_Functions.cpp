@@ -64,7 +64,6 @@ struct QuickBattleInfo
     _int_ BattleAutoSpells = 0;
 	_int_ isNeedRestore = 0;
 } quickBattleInfo;
-QuickBattleInfo QuickBattle_SAVE;
 //_int_ saveManaHero[2][2];
 
 _int_ __stdcall Y_BATTLE_Proc(HiHook* hook, _BattleMgr_* bm, _EventMsg_* msg)
