@@ -20,7 +20,10 @@
 #define MT_LBUTTONOUTSIDE 8  // лкм за пределами диалога
 #define MT_RBUTTONOUTSIDE 32 // пкм за пределами диалога
 #define MT_EXIT 512          // отмена
+#ifndef WM_MOUSEWHEEL
 #define WM_MOUSEWHEEL  522  // скролл колесом
+#endif // !WM_MOUSEWHEEL
+
 
 // MT_MOUSEBUTTON _EventMsg_::subtype values
 #define MST_EXIT 10          // отмена

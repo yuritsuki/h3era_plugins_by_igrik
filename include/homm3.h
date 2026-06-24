@@ -20,6 +20,14 @@
 // Разрешение игры
 #define o_HD_X (*(_int_*)0x401448)
 #define o_HD_Y (*(_int_*)0x40144F)
+// Разрешение в HD.
+extern _int_ HD_Res_X;
+extern _int_ HD_Res_Y;
+
+// Координаты боя в HD.
+extern _int_ HD_Battle_X;
+extern _int_ HD_Battle_Y;
+
 const int ORIG_X = 800;
 const int ORIG_Y = 600;
 
@@ -1117,7 +1125,7 @@ NOALIGN struct _Spell_
 };
 
 
-NOALIGN struct _CreatureAnim_ // size = 84 Cranim.txt
+NOALIGN struct _CreatureAnim_ : public _Struct_// size = 84 Cranim.txt
 { 
   _int16_ i[6];
   _float_ f[18];  
@@ -1598,6 +1606,112 @@ NOALIGN struct _CastleElement_
   _int16_ Y_Position; // +6h; Вертикальная позиция элемента в пикселях
   _int32_ CastleDrawingPartNum; // +8h; Номер элемента замка среди всех отрисовывающихся частей замка
 };
+// 68 bytes. Большое препятствие в бою.
+NOALIGN struct _BattleObstackleLarge_ : public _Struct_
+{
+    // +0. Маска допустимых территорий.
+    _word_ terrs;
+
+    // +2. Маска допустимых накладных почв.
+    _word_ specterrs;
+
+    // +4. X-координата изображения.
+    _int32_ x;
+
+    // +8. Y-координата изображения.
+    _int32_ y;
+
+    // +12. Блокируемые гексы (-1 - конец списка).
+    _int16_ hexes[26];
+
+    // +64. Имя изображения.
+    _cstr_ pcx;
+};
+
+
+
+// 20 bytes. Тип препятсвия в бою.
+NOALIGN struct _BattleObstackleInfo_ : public _Struct_
+{
+    // +0. Маска допустимых территорий.
+    _word_ terrs;
+
+    // +2. Маска допустимых накладных почв.
+    _word_ specterrs;
+
+    // +4. Высота изображения в гексах.
+    _int8_ img_height;
+
+    // +5. Ширина изображения в гексах.
+    _int8_ img_width;
+
+    // +6. Количество блокируемых гексов.
+    _int8_ hexes_count;
+
+    // +7. Рисуется ли под всеми боевыми боевыми элментами (до общей отрисовки на гексах).
+    _bool8_ draw_under_all;
+
+    // +8. Смещения блокируемых гексов относительно главного гекса препятствия.
+    _int8_ hexes_shifts[8];
+
+    // +16. Имя изображения.
+    _cstr_ def;
+};
+
+
+
+// 24 bytes. Препятствие в бою.
+NOALIGN struct _BattleObstackle_ : public _Struct_
+{
+    // +0. Изображение.
+    _Def_* def;
+
+    // +4. Тип препятствия.
+    _BattleObstackleInfo_* info;
+
+    // +8. Главный гекс препятствия.
+    _int8_ main_hex;
+
+    // +9. Сторона препятсвия (-1 - нет стороны).
+    _int8_ side;
+
+    // +10. Видимо ли (если принадлежит какой-то стороне - то видимо ей независимо от этого поля).
+    _bool8_ visible;
+
+    // +11. Результат выравнивания, не используется.
+    _byte_ dummy_fB[1];
+
+    // +12. Урон при прохождении.
+    _int32_ damage;
+
+    // +16. Длительность (0 - не исчезает).
+    _int32_ duration;
+
+    // +20. Номер анимации исчезновения (-1 - исчезает становясь прозрачным).
+    _int32_ remove_anim;
+
+
+    // my
+    // Инициализация препятствия.
+    _BattleObstackle_* Init(_cstr_ def_name, _int8_ side, _BattleObstackleInfo_* info, _int8_ main_hex_ix, _bool8_ visible, _int32_ damage, _int32_ duration, _int32_ remove_anim)
+    {
+        this->def = o_LoadDef(def_name);
+        this->side = side;
+        this->info = info;
+        this->main_hex = main_hex_ix;
+        this->visible = visible;
+        this->damage = damage;
+        this->duration = duration;
+        this->remove_anim = remove_anim;
+
+        return this;
+    }
+
+};
+
+
+// Препятствие - зыбучий песок.
+#define QUICKSAND ((_BattleObstackleInfo_*)0x63CEE8)
 
 // структура боевого гекса на поле боя
 // размер 112 байт на каждый из 187 гексов
@@ -2193,6 +2307,57 @@ NOALIGN struct _BattleMgr_ : _Struct_
    }
  } 
  
+ 
+ // Обновление в границах перерисовки.
+ inline void FlipRedrawRect()
+ {
+   // Границы перерисовки экрана.
+  _RedrawBorders_* brd = this->PField<_RedrawBorders_>(81208);
+   
+   // Обновляем экран боя в указанных границах.
+  o_WndMgr->RedrawScreenRect(HD_Battle_X + brd->Left, HD_Battle_Y + brd->High, brd->Right - brd->Left + 1, brd->Low - brd->High + 1);
+   
+ }
+ 
+ // Добавление прямоугольника в границы перерисовки.
+ inline void AddRedrawRect(const _RedrawBorders_* rect)
+ {
+   // Границы перерисовки экрана.
+  _RedrawBorders_* brd = this->PField<_RedrawBorders_>(81208);
+   
+   // Добавляем прямоугольник.
+   if (rect->Left < brd->Left) brd->Left = rect->Left;
+   if (rect->High < brd->High) brd->High = rect->High;
+   if (rect->Right > brd->Right) brd->Right = rect->Right;
+   if (rect->Low > brd->Low) brd->Low = rect->Low;
+   
+   // Ограничиваем границами экрана.
+   if (brd->Left < BattleRedraw_Borders.Left) brd->Left = BattleRedraw_Borders.Left;
+   if (brd->High < BattleRedraw_Borders.High) brd->High = BattleRedraw_Borders.High;
+   if (brd->Right > BattleRedraw_Borders.Right) brd->Right = BattleRedraw_Borders.Right;
+   if (brd->Low > BattleRedraw_Borders.Low) brd->Low = BattleRedraw_Borders.Low;
+ }
+ 
+  // Добавление прямоугольника в границы перерисовки.
+ inline void AddRedrawRect(_int_ left, _int_ top, _int_ right, _int_ bottom)
+ {
+   // Границы перерисовки экрана.
+  _RedrawBorders_* brd = this->PField<_RedrawBorders_>(81208);
+   
+   // Добавляем прямоугольник.
+   if (left < brd->Left) brd->Left = left;
+   if (top < brd->High) brd->High = top;
+   if (right > brd->Right) brd->Right = right;
+   if (bottom > brd->Low) brd->Low = bottom;
+   
+   // Ограничиваем границами экрана.
+   if (brd->Left < BattleRedraw_Borders.Left) brd->Left = BattleRedraw_Borders.Left;
+   if (brd->High < BattleRedraw_Borders.High) brd->High = BattleRedraw_Borders.High;
+   if (brd->Right > BattleRedraw_Borders.Right) brd->Right = BattleRedraw_Borders.Right;
+   if (brd->Low > BattleRedraw_Borders.Low) brd->Low = BattleRedraw_Borders.Low;
+ }
+
+
  // Добавление области к границам перерисовки. Возврат необходимости отрисовки изображения (по настройкам).
  // Возвращение необходимости перерисовки.
  inline _bool_ AddUpdateArea(_int_ X_Pos, _int_ Y_Pos, _int_ Width, _int_ Height)
