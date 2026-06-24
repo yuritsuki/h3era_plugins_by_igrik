@@ -997,11 +997,171 @@ _LHF_(BattleMgr_TryToCastAutoSpell)
 }
 int storedValue = 0;
 char storedWavName[13];
-struct SAMPLE2
-{
-    _Wav_ *wav;
-    HANDLE playSample;
-};
+
+//
+//// Идёт ли сейчас предбитвенный звук.
+//_bool_ IsPreBattleSound = FALSE;
+//// Сообщение о возможности пропуска предбитвенного звука.
+//// TString PreBattleSound_SkippingMessage = NULL;
+//
+//// При загрузке и старте звука делаем его параллельным.
+//_Sample_ __stdcall HookOn_Load_Start_Sample(HiHook *h, _cstr_ Name)
+//{
+//    // Предбитвенный звук возвращаем стандартно.
+//    if (IsPreBattleSound)
+//    {
+//        return CALL_1(_Sample_, __fastcall, h->GetDefaultFunc(), Name);
+//    }
+//    // Иные звуки...
+//    else
+//    {
+//        // Проигрываем звук распараллеленно.
+//        CALL_3(void, __fastcall, 0x59A890, Name, -1, 3);
+//
+//        // Возвращаем неудачу при загрузке.
+//        return EmptySample;
+//    }
+//}
+//
+//// При загрузке и старте звука предбитвенного звука загружаем и начинаем его как обычно.
+//_Sample_ __stdcall HookOn_Load_Start_PreBattle_Sample(HiHook *h, _cstr_ Name)
+//{
+//    IsPreBattleSound = TRUE;
+//
+//    // Инициализуруем и начинаем звук.
+//    _Sample_ Sample = CALL_1(_Sample_, __fastcall, h->GetDefaultFunc(), Name);
+//    ;
+//
+//    IsPreBattleSound = FALSE;
+//
+//    return Sample;
+//}
+//// Пропуск стандартного окончания звука.
+//void __stdcall HookOn_End_Sample_Std(_Sample_ Sample)
+//{
+//    // Не оканчиваем эти звуки.
+//    return;
+//}
+//// При ожидании и окончании проигрывания звука пропускаем это для всех звуков, кроме предбитвенного.
+//void __stdcall HookOn_Wait_End_Close_Sample(HiHook *h, int Time, _Sample_ Sample)
+//{
+//    // Если звук предбитвенный - проигрываем.
+//    if (IsPreBattleSound)
+//    {
+//        CALL_3(void, __thiscall, h->GetDefaultFunc(), Time, Sample.Wav, Sample.PlayingInd);
+//    }
+//}
+//// Проверка возможности отрисовки битвы.
+//_bool_ CanDrawBattle()
+//{
+//    if (*(DWORD*)((DWORD)o_BattleMgr + 78584) || o_BattleMgr->ShouldNotRenderBattle() || !*(DWORD*)((DWORD)o_BattleMgr + 78592))
+//    {
+//        return FALSE;
+//    }
+//    else
+//    {
+//        return TRUE;
+//    }
+//}
+//// При ожидании и окончании проигрывания предбитвенного звука...
+//void __stdcall HookOn_Wait_End_Close_PreBattleSample(HiHook *h, int Time, _Sample_ Sample)
+//{
+//
+//    IsPreBattleSound = TRUE;
+//
+//    // Инициализация времени анимации ожидания.
+//    WaitAnimTime = o_GetTime();
+//
+//    // Сообщение о возможности пропуска.
+//    strcpy(H3TempStr, "");
+//    CALL_4(void, __thiscall, 0x4729D0, *(DWORD *)((DWORD)o_BattleMgr + 78588), H3TempStr, 0, 0);
+//
+//    // Проигрываем предбитвенный звук нормально.
+//    CALL_3(void, __thiscall, h->GetDefaultFunc(), Time, Sample.Wav, Sample.PlayingInd);
+//
+//    // Стираем сообщение о возможности пропуска.
+//    CALL_4(void, __thiscall, 0x4729D0, *(DWORD *)((DWORD)o_BattleMgr + 78588), &EmptyVar, 0, 0);
+//
+//    IsPreBattleSound = FALSE;
+//}
+//
+//// При расчёте времени проигрывании звука в бою учитываем его настройки скорости.
+//int __stdcall HookOn_Wait_End_Close_Sample_CalcTime(LoHook *h, HookContext *c)
+//{
+//    // Если это звук битвы, но не предбитвенная панорама, умножаем на моножитель скорости.
+//    if (CanDrawBattle() && !IsPreBattleSound)
+//    {
+//        c->esi = (DWORD)(((double)(c->esi)) * (BattleAnimPeriodFactors[Settind_BattleFast]));
+//    }
+//
+//    return EXEC_DEFAULT;
+//}
+//// При ожидании и окончании звука в бою также отрисовываем анимацию.
+//int __stdcall HookOn_Wait_End_Close_Sample_Play(LoHook *h, HookContext *c)
+//{
+//    // Если это битва и настало время, отрисовываем анимацию ожидания.
+//    if (CanDrawBattle() && o_GetTime() - WaitAnimTime >= 0)
+//    {
+//        // Очистка полей перерисовки.
+//        o_BattleMgr->ClearRedrawFields();
+//        // Проигрывание случайной анимации.
+//        o_BattleMgr->PlayWaitAnim();
+//        // Отрисовка.
+//        o_BattleMgr->RedrawBattlefield(TRUE, TRUE, TRUE, 0, TRUE, FALSE);
+//    }
+//    // Если сейчас предбитвенный звук и была нажата клавиша ESC, завершаем его.
+//    if (IsPreBattleSound)
+//    {
+//        // Получаем первое несчитанное событие.
+//        _EventMsg_ event_msg;
+//        o_InputMgr->Peek_Event(&event_msg);
+//
+//        // Если событие - нажатие клавиши ESC, заверщаем звук.
+//        if (event_msg.type == 1 && event_msg.subtype == 1)
+//        {
+//            // Время завершения - в близжайший момент.
+//            IntAt(c->ebp - 4) = 0;
+//        }
+//    }
+//
+//    return EXEC_DEFAULT;
+//}
+//
+//// При ожидании проигрывания звука пропускаем его.
+//void __stdcall HookOn_Wait_Sample(HiHook *h, _ptr_ SoundMgr, _dword_ SampleInd, int Time)
+//{
+//    // Не ожидаем.
+//    return;
+//}
+//
+//// При расчёте времени ожидания звука в бою учитываем его настройки скорости.
+//int __stdcall HookOn_Wait_Sample_CalcTime(LoHook *h, HookContext *c)
+//{
+//    // Если это звук битвы, но не предбитвенная панорама, умножаем на моножитель скорости.
+//    if (CanDrawBattle())
+//    {
+//        c->esi = (_int32_)(((double)(c->esi)) * (BattleAnimPeriodFactors[Settind_BattleFast]));
+//    }
+//
+//    return EXEC_DEFAULT;
+//}
+//
+//// При ожидании звука в бою также отрисовываем анимацию.
+//int __stdcall HookOn_Wait_Sample_Play(LoHook *h, HookContext *c)
+//{
+//    // Если это битва и настало время, отрисовываем анимацию ожидания.
+//    if (CanDrawBattle() && o_GetTime() - WaitAnimTime >= 0)
+//    {
+//        // Очистка полей перерисовки.
+//        o_BattleMgr->ClearRedrawFields();
+//        // Проигрывание случайной анимации.
+//        o_BattleMgr->PlayWaitAnim();
+//        // Отрисовка.
+//        o_BattleMgr->RedrawBattlefield(TRUE, TRUE, TRUE, 0, TRUE, FALSE);
+//    }
+//
+//    return EXEC_DEFAULT;
+//}
 
 __int64 __stdcall CombatStartSound_LoadAndPlay(HiHook *h, char *name)
 {
@@ -1016,14 +1176,14 @@ void __stdcall CombatStartSound_WaitToPlay(HiHook *h, int timeToWait, _Wav_ *wav
 {
 
     //    CALL_3(void, __fastcall, 0x059A890, storedWavName, -1, 3);
-   // CALL_3(void, __fastcall, 0x059A890, wav->name, -1, 3);
+    // CALL_3(void, __fastcall, 0x059A890, wav->name, -1, 3);
     //   CALL_3(void, __thiscall, h->GetDefaultFunc(), timeToWait, wav, stopSounds);
 }
 void __stdcall PlayCombatMusicAtStart(HiHook *h, _SoundMgr_ *snd, char *name, int atStart, int loop)
 {
 
-    //storedValue = snd->f0[0x8C];
-    //snd->f0[0x8C] = 0;
+    // storedValue = snd->f0[0x8C];
+    // snd->f0[0x8C] = 0;
     auto currentStream = IntAt(0x069FED8);
     if (currentStream)
     {
@@ -1266,19 +1426,51 @@ void GameLogic(PatcherInstance *_PI)
     // © daemon_n
 
     //  _PI->WriteHiHook(0x04626EA, CALL_, EXTENDED_, THISCALL_, CombatStartSound_LoadAndPlay);
-    //_PI->WriteHiHook(0x0462C2B, CALL_, EXTENDED_, THISCALL_, CombatStartSound_WaitToPlay);
+    // _PI->WriteHiHook(0x0462C2B, CALL_, EXTENDED_, THISCALL_, CombatStartSound_WaitToPlay);
 
-    //// 0059AB30
-    //// отключение музыки победы после закрытия диалога результатов битвы
-    //_PI->WriteLoHook(0x0047724F, Dlg_BattleResults_StopVictoryMusic);
-    //_PI->WriteLoHook(0x004772FE, Dlg_BattleResults_StopVictoryMusic);
-    //// _PI->WriteLoHook(0x00477306, Dlg_BattleResults_End);
-    //_PI->WriteHiHook(0x00462C65, CALL_, EXTENDED_, THISCALL_, PlayCombatMusicAtStart);
+    // 0059AB30
+    // отключение музыки победы после закрытия диалога результатов битвы
+    // _PI->WriteLoHook(0x0047724F, Dlg_BattleResults_StopVictoryMusic);
+    // _PI->WriteLoHook(0x004772FE, Dlg_BattleResults_StopVictoryMusic);
+    // _PI->WriteLoHook(0x00477306, Dlg_BattleResults_End);
+    //  _PI->WriteHiHook(0x00462C65, CALL_, EXTENDED_, THISCALL_, PlayCombatMusicAtStart);
     //  _PI->WriteJmp(0x00462C30, 0x00462C6A); // start combat music play
     // _PI->WriteJmp(0x00477219, 0x0047723A); // end combat music play
     // _PI->WriteJmp(0x0462645, 0x00462652); // start combat music clear
 
-    //_PI->WriteByte(0x0046264B + 1, 0);
+    // Задержки проигрывания звука.
+
+    // При загрузке и старте звука делаем его параллельным.
+    //_PI->WriteHiHook(0x59A770, SPLICE_, EXTENDED_, FASTCALL_1, HookOn_Load_Start_Sample);
+
+    //// При загрузке и старте звука предбитвенного звука загружаем и начинаем его как обычно.
+    //_PI->WriteHiHook(0x4626EA, CALL_, EXTENDED_, FASTCALL_1, HookOn_Load_Start_PreBattle_Sample);
+
+    //// Убираем стандартные оканчивания звуков.
+    //_PI->WriteHiHook(0x419D45, CALL_, DIRECT_, STDCALL_, HookOn_End_Sample_Std);
+    //_PI->WriteHiHook(0x41A99A, CALL_, DIRECT_, STDCALL_, HookOn_End_Sample_Std);
+    //_PI->WriteHiHook(0x4AE364, CALL_, DIRECT_, STDCALL_, HookOn_End_Sample_Std);
+
+    //// При ожидании и окончании проигрывания звука пропускаем это для всех звуков, кроме предбитвенного.
+    //_PI->WriteHiHook(0x59A7C0, SPLICE_, EXTENDED_, THISCALL_, HookOn_Wait_End_Close_Sample);
+    //// При ожидании и окончании проигрывания предбитвенного звука...
+    //_PI->WriteHiHook(0x462C2B, CALL_, EXTENDED_, THISCALL_, HookOn_Wait_End_Close_PreBattleSample);
+
+    //// При расчёте времени проигрывании звука в бою учитываем его настройки скорости.
+    //_PI->WriteLoHook(0x59A7D2, HookOn_Wait_End_Close_Sample_CalcTime);
+
+    //// При ожидании и окончании звука в бою также отрисовываем анимацию.
+    //_PI->WriteLoHook(0x59A7E3, HookOn_Wait_End_Close_Sample_Play);
+
+    //// При ожидании проигрывания звука пропускаем его.
+    //_PI->WriteHiHook(0x59A1C0, SPLICE_, EXTENDED_, THISCALL_, HookOn_Wait_Sample);
+
+    //// При расчёте времени ожидания звука в бою учитываем его настройки скорости.
+    //_PI->WriteLoHook(0x59A1DA, HookOn_Wait_Sample_CalcTime);
+
+    //// При ожидании звука в бою также отрисовываем анимацию.
+    //_PI->WriteLoHook(0x59A1DF, HookOn_Wait_Sample_Play);
+
     if (!TIPHON)
     {
 
