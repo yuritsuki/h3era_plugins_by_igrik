@@ -345,11 +345,39 @@ NOALIGN struct _Pcx16_ : public _Pcx_
 
 
 
+
 // Границы перерисовки.
-NOALIGN struct _RedrawBorders_
+NOALIGN struct _RedrawBorders_ : public _Struct_
 {
-  _int_ Left; // Левая
-  _int_ High; // Верхняя
-  _int_ Right; // Правая
-  _int_ Low; // Нижняя
+    _int_ Left; // Левая
+    _int_ High; // Верхняя
+    _int_ Right; // Правая
+    _int_ Low; // Нижняя
+
+    // Конструктор-умолчание.
+    _RedrawBorders_()
+    {
+        this->Left = ((_RedrawBorders_*)0x6AAD50)->Left;
+        this->High = ((_RedrawBorders_*)0x6AAD50)->High;
+        this->Right = ((_RedrawBorders_*)0x6AAD50)->Right;
+        this->Low = ((_RedrawBorders_*)0x6AAD50)->Low;
+    }
+
+    // Добавление прямоугольника.
+    void AddRect(_int_ left, _int_ top, _int_ right, _int_ low)
+    {
+        if (left < this->Left) this->Left = left;
+        if (top < this->High) this->High = top;
+        if (right > this->Right) this->Right = right;
+        if (low > this->Low) this->Low = low;
+    }
+
+    // Добавление прямоугольника.
+    void AddRect(_RedrawBorders_* rect)
+    {
+        if (rect->Left < this->Left) this->Left = rect->Left;
+        if (rect->High < this->High) this->High = rect->High;
+        if (rect->Right > this->Right) this->Right = rect->Right;
+        if (rect->Low > this->Low) this->Low = rect->Low;
+    }
 };

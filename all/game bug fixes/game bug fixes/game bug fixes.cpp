@@ -1,6 +1,7 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "..\..\..\include\homm3.h"
 #include "..\..\..\include\era.h"
-
 Patcher* _P;
 PatcherInstance* _PI;
 
@@ -26,6 +27,9 @@ char* BATTLE_DLG_NAME = "battle_dlg.daemon.plugin";
 #include "src\HeroMovementFixes.cpp"
 #include "src\AIFixes.cpp"
 #include "src\LuckFixes.cpp"
+#include "src\MapSizeFixes.cpp"
+// #include "src\CombatFixes.cpp"
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,6 +50,8 @@ void HooksInit(Patcher* _P, PatcherInstance* _PI)
     movement::HeroMovementFixes(_PI);
     AI::AIFixes(_PI);
     luck::LuckFixes(_PI);
+    MapSize::MapSizeFixes(_PI);
+    // CombatFixes(_PI);
 
 }
 

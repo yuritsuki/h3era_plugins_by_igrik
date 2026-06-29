@@ -1,4 +1,30 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// фикс: командиры, имеющие флаг стрельбы и двойной атаки, в рукопашной бъют один раз.
+// Исправим это, ибо они уникальны (03/12/2023)
+_LHF_(Y_NPC_FixDoubleAttackOnMelle)
+{
+    _BattleStack_ *stack = (_BattleStack_ *)c->edi;
+    // CF_DOUBLEATTACK уже проверена к этому моменту
+    // т.е. мы гарантированно знаем, что стек имеет двойную атаку
+    if (stack->creature.flags & BCF_CAN_SHOOT)
+    {
+        if (Era::IsCommanderId(stack->creature_id))
+        {
+            // может иметь двойную атаку
+            c->return_address = 0x441BB1;
+        }
+        // НЕ может иметь двойную атаку
+        else
+            c->return_address = 0x441C01;
+    }
+    // может иметь двойную атаку
+    else
+        c->return_address = 0x441BB1;
+
+    return NO_EXEC_DEFAULT;
+}
+
 /////////////////////////////// добавление расчета силы командиров для AI (Fight_Value и AI_Value)
 ////////////////////////////
 
@@ -71,7 +97,7 @@ int __stdcall get_Fight_Value_Hook(LoHook *h, HookContext *c)
     if (!hero)
         return EXEC_DEFAULT;
 
-    c->ecx += getAIValue_NPC(hero->id);
+    c->ecx += static_cast<int>(getAIValue_NPC(hero->id));
 
     return EXEC_DEFAULT;
 }
@@ -245,6 +271,9 @@ void __stdcall AdvMgr_Chest_Visit(HiHook *h, _AdvMgr_ *AvdManager, _Hero_ *Hero,
 
 void Npc(PatcherInstance *_PI)
 {
+    // командиры, имеющие флаг стрельбы и двойной атаки, в рукопашной бъют один раз. Исправим это, ибо они уникальны
+    _PI->WriteLoHook(0x441BAA, Y_NPC_FixDoubleAttackOnMelle);
+
     // добавляем расчет командиров в проверку Fight_Value
     _PI->WriteLoHook(0x41EAD2, get_Fight_Value_Hook);
     // добавляем в расчет AI_Value и расчет командиров

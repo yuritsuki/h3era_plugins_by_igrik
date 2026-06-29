@@ -33,8 +33,150 @@ void __stdcall CrExpoSet_AddExpo(HiHook *h, _Hero_ *hero, int expToAdd, const in
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+// ИСПРАВЛЕНИЕ ОПЫТА ПРИ ПРИСОЕДИНЕНИИ СУЩЕСТВА К АРМИИ ГЕРОЯ ЧЕРЕЗ ДИАЛОГ ПРИСОЕДИНЕНИЯ
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static _Dlg_ *__stdcall JoinArmyDlgCtor(HiHook *h, _Dlg_ *this_, _Hero_ *hero, _Army_ *army, int a4)
+{
+
+    _Mine_ mine;
+    _CrExpo_::UniData data;
+
+    mine.owner = hero->owner_id;
+    mine.army = *army;
+    data.mine.x = mine.x = hero->x;
+    data.mine.y = mine.y = hero->y;
+    data.mine.z = mine.z = hero->z;
+    auto minesVector = o_GameMgr->Offset(0x4E388);
+    auto lastMine = o_GameMgr->Offset(0x4E390);
+    CALL_4(void, __thiscall, 0x4D0870, (char *)o_GameMgr + 0x4E388, IntAt((char *)o_GameMgr + 0x4E390), 1, &mine);
+
+    for (size_t i = 0; i < 7; i++)
+    {
+        if (army->type[i] > -1 && army->count[i] > 1)
+        {
+            data.mine.slot = i;
+            _CrExpo_::SetNewAndClamp(eExpType::CE_MINE, data, army->type[i], army->count[i], 0);
+            auto expo = _CrExpo_::Find(eExpType::CE_MINE, data);
+            expo->experience = 12222;
+        }
+    }
+
+    // o_GameMgr->map_header
+
+    auto result = CALL_4(_Dlg_ *, __thiscall, h->GetDefaultFunc(), this_, hero, army, a4);
+
+    return result;
+}
+
+// © daemon_n
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 // ИСПРАВЛЕНИЕ РАССЧЁТА ОПЫТА ПРИ ПЕРЕПОЛНЕНИИ INT32
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// © daemon_n
+// исправление перерасчёта опыта существа при модификации количества существ в отряде через ERM комманды EX или HE:C
+static void __cdecl ERM_EX_ValidateSlot(HiHook *h, _CrExpo_ *this_, const int expOrRankMod, const int type,
+                                        const int srcMonId, const int dstMonId, const int old_mon_number,
+                                        const int new_mon_number)
+{
+
+    auto ClampExp = [](int64_t value) -> int {
+        if (value <= 0)
+            return 0;
+        if (value > INT_MAX)
+            return INT_MAX;
+        return static_cast<int>(value);
+    };
+
+    auto SafeMulDiv = [&](int a, int b, int c) -> int { return c ? ClampExp((static_cast<int64_t>(a) * b) / c) : 0; };
+
+    auto SafeBlend = [&](int oldValue, int oldCount, int newValue, int newCount) -> int {
+        if (!newCount)
+            return 0;
+        return ClampExp(static_cast<int64_t>(newValue) +
+                        ((static_cast<int64_t>(oldValue) - newValue) * oldCount) / newCount);
+    };
+
+    switch (type)
+    {
+    case 0:
+        if (!new_mon_number)
+        {
+            this_->experience = 0;
+            break;
+        }
+
+        if (srcMonId == dstMonId)
+
+            this_->experience = SafeBlend(this_->experience, old_mon_number, expOrRankMod, new_mon_number);
+        else
+            this_->experience = expOrRankMod;
+        break;
+    case 1:
+        this_->experience = SafeBlend(this_->experience, old_mon_number, expOrRankMod, new_mon_number);
+        break;
+    case 2:
+        this_->experience = ClampExp(static_cast<int64_t>(expOrRankMod));
+        break;
+    case 3:
+        this_->experience = ClampExp(static_cast<int64_t>(this_->experience) + expOrRankMod);
+        break;
+    case 4:
+        this_->experience = _CrExpo_::GetCreatureExpByRankAndExp(dstMonId, expOrRankMod, this_->experience);
+        break;
+    case 5: {
+        const double mul = _CrExpo_::GetCreatureUpgradeMultiplier(srcMonId);
+        const double value = mul * static_cast<double>(this_->experience) + static_cast<double>(expOrRankMod);
+        this_->experience = ClampExp(static_cast<int64_t>(value));
+        break;
+    }
+    case 10:
+        if (!(new_mon_number + old_mon_number))
+        {
+            this_->experience = 0;
+            break;
+        }
+        if (srcMonId != dstMonId)
+        {
+            this_->experience = _CrExpo_::GetCreatureExpByRankAndExp(dstMonId, expOrRankMod, 0);
+            break;
+        }
+        // NO BREAK!!
+    case 11: {
+        if (!new_mon_number)
+        {
+            this_->experience = 0;
+            break;
+        }
+        const int dstExp = _CrExpo_::GetCreatureExpByRankAndExp(dstMonId, expOrRankMod, 0);
+        this_->experience = SafeBlend(this_->experience, old_mon_number, dstExp, new_mon_number);
+        break;
+    }
+    case 12:
+        this_->experience = _CrExpo_::GetCreatureExpByRankAndExp(dstMonId, expOrRankMod, 0);
+        break;
+    case 13: {
+        const int dstLimit = _CrExpo_::GetCreatureExpLimit(dstMonId);
+        const int srcLimit = _CrExpo_::GetCreatureExpLimit(srcMonId);
+        this_->experience =
+            ClampExp(static_cast<int64_t>(expOrRankMod) + SafeMulDiv(dstLimit, this_->experience, srcLimit));
+        break;
+    }
+    case 14: {
+        const int dstLimit = _CrExpo_::GetCreatureExpLimit(dstMonId);
+        const int srcLimit = _CrExpo_::GetCreatureExpLimit(srcMonId);
+        const int scaledExpo = SafeMulDiv(dstLimit, this_->experience, srcLimit);
+        this_->experience = _CrExpo_::GetCreatureExpByRankAndExp(dstMonId, expOrRankMod, scaledExpo);
+        break;
+    }
+    default:
+        return;
+    }
+    // if (dstMonId >= 0)
+    //   this_->Clamp(dstMonId);
+}
 
 _LHF_(WoG_CrExpo_Recalc)
 {
@@ -159,8 +301,9 @@ _LHF_(WoG_InTowmArmyMerge_ExperienceCreatorIterator)
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // ИСПРАВЛЕНИЕ ОПЫТА ДЛЯ ИИ ПРИ ОБМЕНЕ И ПОКУПКЕ АРМИЙ
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+BOOL GetArmyExperience(const eExpType type, _CrExpo_::UniData baseData, _CrExpo_ *crexps[7]);
 
-static void DebugArmy(const char *armyName, _Army_ *army, _CrExpo_ **crexpos = nullptr)
+static void DebugArmy(const char *armyName, const _Army_ *army, _CrExpo_ **crexpos = nullptr)
 {
     std::string msg = armyName;
     msg += "\n\n\n";
@@ -183,6 +326,30 @@ static void DebugArmy(const char *armyName, _Army_ *army, _CrExpo_ **crexpos = n
         }
     }
     o_MsgBox((char *)msg.c_str());
+}
+inline static void DebugHero(const _Hero_ *hero, const char *name = nullptr, const int withExp = true)
+{
+#ifdef _DEBUG
+
+    if (hero->id != HID_DEEMER)
+    {
+        return;
+    }
+    _CrExpo_ *crexps[7] = {0};
+    _CrExpo_ **p_crexps = crexps;
+
+    if (withExp)
+    {
+        _CrExpo_::UniData basePlace;
+        basePlace.hero.id = hero->id;
+        GetArmyExperience(CE_HERO, basePlace, crexps);
+    }
+    if (!name)
+    {
+        name = "Hero Army";
+    }
+    DebugArmy(name, &hero->army, p_crexps);
+#endif // _DEBUG
 }
 
 _Army_ sourceArmyCopy, targetArmyCopy;
@@ -314,7 +481,7 @@ BOOL GetArmyExperience(const eExpType type, _CrExpo_::UniData baseData, _CrExpo_
     case CE_HERO:
         for (size_t i = 0; i < 7; i++)
         {
-            baseData.hero.slot = i;
+            baseData.hero.slot = static_cast<short>(i);
             crexps[i] = _CrExpo_::Find(CE_HERO, baseData);
         }
         break;
@@ -323,7 +490,7 @@ BOOL GetArmyExperience(const eExpType type, _CrExpo_::UniData baseData, _CrExpo_
     case CE_HORN:
         for (size_t i = 0; i < 7; i++)
         {
-            baseData.anyGarrison.slot = i;
+            baseData.anyGarrison.slot = static_cast<short>(i);
             crexps[i] = _CrExpo_::Find(type, baseData);
         }
         break;
@@ -339,6 +506,8 @@ void __stdcall AI_Player_Hero_ManageArmyInTown(HiHook *h, DWORD *aiData, _Hero_ 
 
     // если включён опыт существ
     const BOOL stackExpIsEnabled = IntAt(0x2772730);
+
+    // DebugHero(targetHero, "AI_Player_Hero_ManageArmyInTown");
 
     if (stackExpIsEnabled)
     {
@@ -385,6 +554,7 @@ void __stdcall AI_Player_Hero_ManageArmyInTown(HiHook *h, DWORD *aiData, _Hero_ 
         RemapArmyFromPool(pool, poolSize, town->GetUpArmy(), sourceArmyType, sourceArmyData);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
+    // DebugHero(targetHero);
 }
 
 struct
@@ -401,6 +571,7 @@ struct
             hero = targetHero;
             memcpy(&armyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии героя до улучшения
         }
+        // DebugHero(targetHero, "BeforeUpgrade");
     }
 
     void AfterUpgrade()
@@ -435,11 +606,12 @@ struct
                                                          oldType)); // получение мультипликатора опыта при улучшении
                     }
                 }
-                data.hero.slot = i;
+                data.hero.slot = static_cast<short>(i);
                 // создаём новый слот с типом существа после улучшения
                 const int offset = _CrExpo_::SetNewAndClamp(CE_HERO, data, newType, hero->army.count[i], newExp);
             }
         }
+        // DebugHero(hero, "AfterUpgrade");
     }
 } armyUpgrader;
 // хук перед самим улучшением армий
@@ -465,6 +637,10 @@ void __stdcall AI_AdvMgr_HillFort(HiHook *h, _Hero_ *targetHero)
 // покупка существа во городском жилище жилище
 void __stdcall AI_Town_BuyCreatures(HiHook *h, DWORD _this, _Town_ *town)
 {
+
+    // DebugHero(o_GameMgr->GetHero(town->up_hero_id), "AI_Town_BuyCreatures up_hero_id");
+    // DebugHero(o_GameMgr->GetHero(town->down_hero_id), "AI_Town_BuyCreatures down_hero_id");
+
     const BOOL stackExpIsEnabled = IntAt(0x2772730);
     if (stackExpIsEnabled)
     {
@@ -484,6 +660,7 @@ void __stdcall AI_Town_BuyCreatures(HiHook *h, DWORD _this, _Town_ *town)
         {
             targetArmyData.hero.id = town->up_hero_id; // герой-защитник
             targetArmyType = CE_HERO;
+            // DebugHero(o_GameMgr->GetHero(town->up_hero_id), "AI_Town_BuyCreatures");
         }
         else
         {
@@ -509,6 +686,7 @@ void __stdcall AI_H3Hero_BuyDwellingCreatures(HiHook *h, _Hero_ *targetHero, _Dw
     if (stackExpIsEnabled)
     {
         memcpy(&targetArmyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии города до обмена
+        // DebugHero(targetHero, "AI_H3Hero_BuyDwellingCreatures");
     }
 
     CALL_2(void, __fastcall, h->GetDefaultFunc(), targetHero, dwelling);
@@ -525,12 +703,14 @@ void __stdcall AI_H3Hero_BuyDwellingCreatures(HiHook *h, _Hero_ *targetHero, _Dw
         PoolItem pool[7];
         const int poolSize = BuildPool(pool, targetArmyCopy, targetArmyExp);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
+        // DebugHero(targetHero, "AI_H3Hero_BuyDwellingCreatures");
     }
 }
 
 // корректировка опыта для ИИ при присоединении одного существа извне
 void __stdcall AI_H3Hero_JoinOneCreature(HiHook *h, _Hero_ *targetHero, const int creatureId, WORD monNum)
 {
+    //   DebugHero(targetHero, "AI_H3Hero_JoinOneCreature");
 
     const BOOL stackExpIsEnabled = IntAt(0x2772730);
     if (stackExpIsEnabled)
@@ -553,6 +733,7 @@ void __stdcall AI_H3Hero_JoinOneCreature(HiHook *h, _Hero_ *targetHero, const in
         const int poolSize = BuildPool(pool, targetArmyCopy, targetArmyExp);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
+    // DebugHero(targetHero, "AI_H3Hero_JoinOneCreature");
 }
 // обмен армиями между ИИ-героем и гарнизоном
 void __stdcall AI_H3Hero_VisitGarrison(HiHook *h, _Hero_ *targetHero, _H3Garrison_ *sourceGarrison)
@@ -560,7 +741,7 @@ void __stdcall AI_H3Hero_VisitGarrison(HiHook *h, _Hero_ *targetHero, _H3Garriso
     // если включе опыт существ
     const BOOL applyChangesToAI =
         IntAt(0x2772730) && sourceGarrison->armyRemovable && sourceGarrison->owner == targetHero->owner_id;
-
+    // DebugHero(targetHero, "AI_H3Hero_VisitGarrison");
     if (applyChangesToAI)
     {
         memcpy(&sourceArmyCopy, &sourceGarrison->army, sizeof(_Army_)); // сохраняем данные армии гарнизона до обмена
@@ -592,6 +773,7 @@ void __stdcall AI_H3Hero_VisitGarrison(HiHook *h, _Hero_ *targetHero, _H3Garriso
         RemapArmyFromPool(pool, poolSize, &sourceGarrison->army, CE_HORN, sourceArmyData);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
+    // DebugHero(targetHero, "AI_H3Hero_VisitGarrison");
 }
 
 // корректировка при обмене армиями между двумя ИИ-Героями. Работает, если есть 2 героя
@@ -604,6 +786,7 @@ void __stdcall AI_ArmyExchanging_ExchangeArmy(HiHook *h, DWORD *aiData, _Hero_ *
         memcpy(&sourceArmyCopy, sourceArmy, sizeof(_Army_));        // сохраняем данные армии визитёра до обмена
         memcpy(&targetArmyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии источника до обмена
     }
+    // DebugHero(targetHero);
 
     CALL_5(void, __thiscall, h->GetDefaultFunc(), aiData, targetHero, sourceArmy, sourceHero, hasAlliance);
 
@@ -628,6 +811,7 @@ void __stdcall AI_ArmyExchanging_ExchangeArmy(HiHook *h, DWORD *aiData, _Hero_ *
         RemapArmyFromPool(pool, poolSize, sourceArmy, CE_HERO, sourceArmyData);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
+    // DebugHero(targetHero);
 }
 
 // помещение героя на карту:
@@ -642,6 +826,7 @@ void __stdcall H3Hero_PutOnMap(HiHook *h, _Hero_ *targetHero, const int playerId
     {
         memcpy(&targetArmyCopy, &targetHero->army, sizeof(_Army_)); // сохраняем данные армии города до обмена
     }
+    // DebugHero(targetHero, "H3Hero_PutOnMap");
 
     CALL_4(void, __thiscall, h->GetDefaultFunc(), targetHero, playerId, pos, resetFlags);
 
@@ -659,6 +844,7 @@ void __stdcall H3Hero_PutOnMap(HiHook *h, _Hero_ *targetHero, const int playerId
         const int poolSize = BuildPool(pool, targetArmyCopy, targetArmyExp);
         RemapArmyFromPool(pool, poolSize, &targetHero->army, CE_HERO, targetArmyData);
     }
+    // DebugHero(targetHero, "H3Hero_PutOnMap");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -675,6 +861,10 @@ void CrExpoFixes(PatcherInstance *_PI)
     // ИСПРАВЛЕНИЯ
 
     // © daemon_n
+    // исправление ошибки с ненайденным опытом существа при открытии диалога присоединения армии к герою
+    //  _PI->WriteHiHook(0x05D1620, CALL_, EXTENDED_, THISCALL_, JoinArmyDlgCtor); // добавить опыт существам
+
+    // © daemon_n
     // Ошибка бонуса опыта существ для члена "модификатор", где имеем некорректный тип данных (знаковый) для структуры:
     // Суть в подмене типа копирования символов со знакового на беззнаковое ( MOVSX -> MOVZX )
     _PI->WriteByte(0x71C7A7 + 1, 0xB6);
@@ -688,6 +878,10 @@ void CrExpoFixes(PatcherInstance *_PI)
     _PI->WriteLoHook(0x04E36CE,
                      Hero__AtGiveExperienceAfterLimit); // сохранить опыт героя, который он должен был получить
     _PI->WriteHiHook(0x076B46D, CALL_, EXTENDED_, CDECL_, CrExpoSet_AddExpo); // добавить опыт существам
+
+    // © daemon_n
+    // исправление перерасчёта опыта существа при модификации количества существ в отряде через ERM комманды EX или HE:C
+    _PI->WriteHiHook(0x071960B, SPLICE_, EXTENDED_, CDECL_, ERM_EX_ValidateSlot);
 
     // © daemon_n
     // исправление перерасчёта опыта существа при изменении их количества в стеке (при покупке или тп)
@@ -740,6 +934,9 @@ void CrExpoFixes(PatcherInstance *_PI)
         _PI->WriteHiHook(0x0526333, CALL_, EXTENDED_, THISCALL_, AI_ArmyExchanging_ExchangeArmy);
         // обмен армиями между героем в городе
         _PI->WriteHiHook(0x052587F, CALL_, EXTENDED_, THISCALL_, AI_ArmyExchanging_ExchangeArmy);
+
+        // DEBUG
+        // _PI->WriteHiHook(0x042C3B0, SPLICE_, EXTENDED_, THISCALL_, AI_ArmyExchanging_ExchangeArmy);
 
         // помещение героя в на карту -- нужно для покупки и прочее. ПРОВЕРЯТЬ НА СБРОС!
         _PI->WriteHiHook(0x04D7B70, SPLICE_, EXTENDED_, THISCALL_, H3Hero_PutOnMap);

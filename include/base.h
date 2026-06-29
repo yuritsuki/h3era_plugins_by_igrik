@@ -63,7 +63,10 @@ using std::string;
 #define _bool32_ _int32_
 
 // Логический (двойное слово).
+#ifndef _bool_
 #define _bool_ _bool32_
+#endif // !_bool_
+
 
 // Целый (знаковое двойное слово).
 #define _int_ _int32_
@@ -474,7 +477,7 @@ public:
  ~TArray()
  {
   // Освобождаем занятую массивом память.
-  MemFree(this->data);
+  free(this->data);
  }
 
  // Получение количества элементов массива.
@@ -499,7 +502,7 @@ public:
     //this->data = (ElementType*)MemRealloc(this->data, new_size);
     ElementType* new_data = (ElementType*)MemAlloc(new_size);
     MemCopy(new_data, data, min(data_size, new_size));
-    MemFree(data);
+    free(data);
     data = new_data;
 
     // Заполняем дополнительно выделенную память нулями.
@@ -513,7 +516,7 @@ public:
   // Если новая длина равна 0, освобождаем память массива.
   else
   {
-   MemFree(this->data);
+   free(this->data);
    this->data = NULL;
    this->data_size = 0;
    this->length = 0;
@@ -551,10 +554,17 @@ protected:
  static TString op_result;
 
 public:
- // Конструктор.
- TString(const _cstr_ cstr);
+// Конструктор.
+TString::TString(const _cstr_ cstr)
+{
+ // Оператор перегружен, длина устанавливается автоматически.
+ *this = cstr;
+}
  // Пустая строка.
- TString();
+ TString()
+ {
+ TArray<_char_>::TArray();
+ }
  // Деструктор.
  //~TString();
 
@@ -564,18 +574,54 @@ public:
   return this->data;
  }
 
- // Установка длины строки.
- void SetLength(int new_len);
- // Добавление символа к строке.
- void Add(const _char_ &chr);
+// Установка длины строки.
+void SetLength(int new_len) 
+{
+ TArray<_char_>::SetLength(new_len);
+ // Добавляем 0 в конце, не учитываемый в длине.
+ TArray<_char_>::Add(0);
+ this->length--;
+}
+// Добавление символа к строке.
+void Add(const _char_ &chr) 
+{
+ // Нулевой символ не добавляем.
+ if (chr) 
+ {
+  TArray<_char_>::Add(chr);
+  // Добавляем 0 в конце, не учитываемый в длине.
+  TArray<_char_>::Add(0);
+  this->length--;
+ }
+}
  
  // Приравнивание к строке с длиной.
  TString& operator=(TString& r_str);
- // Приравнивание к C-строке.
- TString& operator=(const _cstr_ r_str);
- // Приравнивание к символу.
- TString& operator=(_char_ r_chr);
- 
+// Приравнивание к C-строке.
+TString& operator=(const _cstr_ r_str)
+{
+ // Если строка есть, устанавоиваем длину и копируем её.
+ if (r_str)
+ {
+  SetLength(strlen(r_str));
+  if (length) MemCopy(data, r_str, length);
+ }
+ // Если стоки нет, обнуляем длину.
+ else
+ {
+  SetLength(0);
+  //MemFree(data);
+  //MemZero(this, sizeof(TString));
+ }
+ return *this;
+}
+// Приравнивание к символу.
+TString& TString::operator=(_char_ r_chr)
+{
+ SetLength(0);
+ Add(r_chr);
+ return *this;
+}
  // Добавление строки с длиной.
  TString& operator+=(TString& r_str);
  // Добавление C-строки.

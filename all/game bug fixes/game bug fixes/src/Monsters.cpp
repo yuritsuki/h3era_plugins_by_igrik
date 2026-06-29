@@ -305,7 +305,22 @@ _LHF_(Gem_OnBattleStackCheckReachability)
 
     return EXEC_DEFAULT;
 }
+// При настройке путей к гексам учитываем, что невозможно атаковать стек, встав на препятствие.
+int __stdcall LoHook_SetHexWays_SkipAttackIfObstackle(LoHook *h, HookContext *c)
+{
+    // Не надо становиться на препятствие - выполняем.
+    if ((((_Struct_ *)(c->ebp - 80))->Field<_dword_>(4) & 0xFC000000) == 0)
+    {
+        return EXEC_DEFAULT;
+    }
+    // Пропускаем проверку стеков, если надо встать на препятствие.
+    else
+    {
+        c->return_address = 0x4B3724;
 
+        return NO_EXEC_DEFAULT;
+    }
+}
 // исправление диалога присоединения монстров
 // в Воге нет проверки на присоединение монстров с кол-вом меньше одного
 _LHF_(Y_Fix_CrChangeDialog)
@@ -564,6 +579,12 @@ void Monsters(PatcherInstance *_PI)
     // Причина в построении вектора гексов целей
     // © daemon_n
     _PI->WriteLoHook(0x4B3309, Gem_OnBattleStackCheckReachability);
+    // При настройке путей к гексам учитываем, что невозможно атаковать стек, встав на препятствие.
+    // (+ это исправление бага с пропуском хода летающим при нажатии).
+    _PI->WriteLoHook(0x4B352F, LoHook_SetHexWays_SkipAttackIfObstackle);
+    // Не перезаписываем направление для атакуемого гекса.
+    _PI->WriteCodePatch(0x4B37A5, "%n", 20);
+    _PI->WriteCodePatch(0x4B37BC, "%n", 3);
 
     // меняем картинки оставления монстров и для эстетики
     // и для того, чтобы визуально понимать, что мы вносили правку

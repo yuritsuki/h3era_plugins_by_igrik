@@ -982,7 +982,7 @@ enum eSpell : INT8
 #define BCF_UNDEAD              0x00040000              // нежить
 #define BCF_AROUNDATTACK        0x00080000              // Атакует всех вокруг, не работает вместе с Дыханием дракона
 #define BCF_MAGOG               0x00100000              // расширенный радиус стреляющих юнитов (Магоги, Личи)
-#define BCF_DIE                 0x00200000              // отряд убит
+#define BCF_DEAD                0x00200000              // отряд убит
 #define BCF_SUMMON              0x00400000              // отряд призван на поле боя
 #define BCF_CLONE               0x00800000              // отряд является клоном (смерть с одной атаки)
 #define BCF_MORALE              0x01000000              // В этом раунде битвы отряду выпала мораль
@@ -1023,13 +1023,13 @@ enum eSpell : INT8
 
 
 // ID нажатых кнопок (Virtual Keys)
-#define VK_SHIFT        16
+// #define VK_SHIFT        16
 #define VK_CTRL         17
 #define VK_ALT          18
 
-#define VK_ESC          27
-#define VK_ENTER        13
-#define VK_SPACE        32
+// #define VK_ESC          27
+// #define VK_ENTER        13
+// #define VK_SPACE        32
 
 // ID нажатых кнопок (Hoat Key)
 #define HK_ESC          1

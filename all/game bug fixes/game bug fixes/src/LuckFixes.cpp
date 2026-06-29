@@ -302,7 +302,7 @@ void LuckFixes(PatcherInstance *_PI)
 
     // ИИ
     // Правка ценности ИИ неудачи (увеличиваем в 2 раза).
-    static _float_ f0_0244 = -0.0244;
+    static _float_ f0_0244 = -0.0244f;
     _PI->WriteDword(0x4355B0 + 2, (_ptr_)&f0_0244);
     _PI->WriteDword(0x438C26 + 2, (_ptr_)&f0_0244);
 
