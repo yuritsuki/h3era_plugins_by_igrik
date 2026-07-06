@@ -155,10 +155,10 @@ int __cdecl ERM_Fix_EA_E(HiHook *hook, _BattleStack_ *stack)
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 #include <set>
 // Решаем проблему когда бонусы специалистов не считаются Супер существам
-// обновлено: теперь поддерживается бесконечная цепочка улучшений существ, а не только 7 уровней
-int __stdcall Y_FixWoG_GetCreatureGrade(LoHook *h, HookContext *c)
+// обновлено: теперь поддерживается бесконечная цепочка улучшений существ, а не только юниты 7-го уровня
+// обновлено: добавлен учёт апгрейда при расчёте максмального запаса хода героя
+inline int FindUpgradedCreature(HookContext *c, const int returnAddress, const int creatureId)
 {
-    const int creatureId = IntAt(c->ebp + 8);
     int heroCreatureSpec = c->ecx;
 
     std::set<int> usedCreatures;
@@ -167,7 +167,7 @@ int __stdcall Y_FixWoG_GetCreatureGrade(LoHook *h, HookContext *c)
         if (heroCreatureSpec == creatureId)
         {
             c->eax = heroCreatureSpec;
-            c->return_address = 0x04E64FF;
+            c->return_address = returnAddress;
             return NO_EXEC_DEFAULT;
         }
 
@@ -175,6 +175,16 @@ int __stdcall Y_FixWoG_GetCreatureGrade(LoHook *h, HookContext *c)
     }
 
     return EXEC_DEFAULT;
+}
+_LHF_(Hero_SpecCreatureInfo_GetCreatureUprade)
+{
+    const int creatureId = IntAt(c->ebp + 8);
+    return FindUpgradedCreature(c, 0x04E64FF, creatureId);
+}
+_LHF_(Hero_GetMaxMovementPoints_GetCreatureUprade)
+{
+    const int creatureId = c->esi;
+    return FindUpgradedCreature(c, 0x04E4EAB, creatureId);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -559,7 +569,8 @@ void Monsters(PatcherInstance *_PI)
 
     // Решаем проблему когда бонусы специалистов не считаются Супер существам
     // _PI->WriteHiHook(0x4E64FA, CALL_, EXTENDED_, FASTCALL_, Y_FixWoG_GetCreatureGrade);
-    _PI->WriteLoHook(0x4E64D1, Y_FixWoG_GetCreatureGrade);
+    _PI->WriteLoHook(0x4E64D1, Hero_SpecCreatureInfo_GetCreatureUprade); // бонусы специалиста существ
+    _PI->WriteLoHook(0x4E4E7E, Hero_GetMaxMovementPoints_GetCreatureUprade);
 
     // показ лычек опыта в диалоге присоединения и оставления монстров на карте
     _PI->WriteHiHook(0x5D15D0, SPLICE_, EXTENDED_, FASTCALL_, Y_Dlg_AddCreatures_Init_Add);
