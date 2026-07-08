@@ -244,7 +244,7 @@ void Spells(PatcherInstance* _PI)
     _PI->WriteLoHook(0x4915B7, DimensionDoorProcMouseOver);
 
     // Исправление бага с несбросом защитной стойки и бешенства стека перед ходом, если ход ему был передан первый раз - уже в фазе ожидания.
-    _PI->WriteCodePatch(0x464DF1, "%n", 10); // 10 nop
+    // _PI->WriteCodePatch(0x464DF1, "%n", 10); // 10 nop
 
 	// добавление точного количества монстров в хинт бар Карты Приключений при активном заклинании Видение
     _PI->WriteLoHook(0x40C2D3, Visions_MonsterCommand);
