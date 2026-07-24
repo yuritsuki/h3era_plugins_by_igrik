@@ -252,6 +252,8 @@ void Spells(PatcherInstance* _PI)
 	// исправление невозможности воскресить Золотых Драконов (и прочую шушеру) через жертву (из-за иммунитета к воскрешению)
     _PI->WriteHiHook(0x05A3C60, SPLICE_, EXTENDED_, THISCALL_, BattleMgr_CanCastSpellAtCoord);
     
+	// исправление бага с невозможностью изучить заклинания города при телепортации героя в город
+	_PI->WriteWord(0x041D9E3, 0x9056); // push esi; nop
     // патчи без Tiphon.dll
     if (!TIPHON)
     {
