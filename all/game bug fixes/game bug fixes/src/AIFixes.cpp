@@ -237,6 +237,10 @@ void AIFixes(PatcherInstance *_PI)
 
     // Учитываем всех стреляющих сквозь препятствия стрелков (а не только архимагов).
     _PI->WriteLoHook(0x424412, LoHook_AICalcBattle_Check_ObstacklesShooters);
+
+    // временно отключаем проверку на каст заклинаний для ИИ в теоретических битвах
+    _PI->WriteByte(0x0423F47 + 3, 0);
+
     return;
     //// + Исправляем плохой учёт ИИ нейтралов при рассчёте боевого духа с учётом Альянса Ангелов (баг SoD).
     //_PI->WriteLoHook(0x42C778, LoHook_FixAngelicAllianceAI1);
