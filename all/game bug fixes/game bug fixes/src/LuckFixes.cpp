@@ -203,6 +203,8 @@ void LuckFixes(PatcherInstance *_PI)
 
     // Перерасчёт морали и удачи отрядов сразу после каста массовых заклинаний артефактами в начале битвы
     _PI->WriteLoHook(0x4650BF, Gem_OnAfterArtSpellCasting);
+    // Перерасчёт морали и удачи при открытии диалога существа
+    _PI->WriteLoHook(0x5F37BE, Gem_OnAfterArtSpellCasting);
     // _BattleStack_::MeleeAtack (00441330)
 
     // Обнуляем удачу атакующего после атаки
