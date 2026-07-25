@@ -216,6 +216,28 @@ _BattleStack_* __stdcall BattleMgr_CanCastSpellAtCoord(HiHook* h,
     }
     return result;
 }
+
+void __stdcall Town_GiveSpellsToHeroes(HiHook *h, _Town_ *town, _Hero_ *hero)
+{
+    CALL_2(void, __thiscall, h->GetDefaultFunc(), town, hero);
+    if (town->up_hero_id != -1)
+    {
+        _Hero_ *topHero = o_GameMgr->GetHero(town->up_hero_id);
+        if (hero == nullptr && town->down_hero_id != -1)
+        {
+            hero = o_GameMgr->GetHero(town->down_hero_id);
+        }
+        if (topHero && hero)
+        {
+            WORD savedBytes[2] = {WordAt(0x04A26D5), WordAt(0x04A271E)};
+            WordAt(0x04A26D5) = 0x66EB;
+            WordAt(0x04A271E) = 0x1DEB;
+            CALL_2(void, __fastcall, 0x04A25B0, topHero, hero);
+			WordAt(0x04A26D5) = savedBytes[0];
+			WordAt(0x04A271E) = savedBytes[1];
+        }
+    }
+}
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -254,6 +276,10 @@ void Spells(PatcherInstance* _PI)
     
 	// исправление бага с невозможностью изучить заклинания города при телепортации героя в город
 	_PI->WriteWord(0x041D9E3, 0x9056); // push esi; nop
+
+	// изучение заклинаний в городе героем автоматически вызывает обмен заклинаниями героев в городе;
+	_PI->WriteHiHook(0x05BE430, SPLICE_, EXTENDED_, THISCALL_, Town_GiveSpellsToHeroes);
+    
     // патчи без Tiphon.dll
     if (!TIPHON)
     {
