@@ -243,6 +243,10 @@ void __stdcall Town_GiveSpellsToHeroes(HiHook *h, _Town_ *town, _Hero_ *hero)
 
 void Spells(PatcherInstance* _PI)
 {
+    // добавление флага "Заклинание с уроном"
+	o_Spells[SPL_LAND_MINE].flags |= 0x200;
+	o_Spells[SPL_FIRE_WALL].flags |= 0x200;
+
     // возможность заходить в гильдию магов без наличия книги и денег у героя-гостя
     _PI->WriteHexPatch(0x5CEA83, "EB74");
     _PI->WriteHexPatch(0x5CEACD, "2800");
