@@ -145,7 +145,7 @@ int __stdcall Y_Dlg_MainMenu_Create(HiHook* hook, _Dlg_* dlg)
 
 // дополняем сообщение ПКМ на кнопке "Авторы"
 void __stdcall OnReportVersion (Era::TEvent* Event) {
-    sprintf(MyString, "{%s}\n(%s)\n", wndText::PLUGIN_NAME, wndText::PLUGIN_DATA);
+    sprintf(MyString, "{%s}: (%s)", wndText::PLUGIN_NAME, wndText::PLUGIN_DATA);
     Era::ReportPluginVersion(MyString);
 }
 
@@ -247,7 +247,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             _PI->WriteLoHook(0x4EEAC0, Y_Hook_MainLoop);
 
             // делаем показ версии игры в главном меню
-            _PI->WriteHiHook(0x4FB930, SPLICE_, EXTENDED_, THISCALL_, Y_Dlg_MainMenu_Create);            
+            // _PI->WriteHiHook(0x4FB930, SPLICE_, EXTENDED_, THISCALL_, Y_Dlg_MainMenu_Create);            
             // делаем более плавное отображение credits
             _PI->WriteLoHook(0x4EE674, Y_DlgCreditsSmoothly);
             _PI->WriteByte(0x4EE6C0 +2, 1); // начало: до достижения копирайтов до верха
