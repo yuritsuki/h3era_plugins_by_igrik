@@ -745,7 +745,9 @@ void Graphics(PatcherInstance *_PI)
 
     // Исправление отображения лишь 1 удачи и морали в иконках (@daemon_n)
     // основной парсер картинок
-    _PI->WriteHiHook(0x04F5540, SPLICE_, EXTENDED_, THISCALL_, ParseMessageBox8Item);
+   // _PI->WriteHiHook(0x04F5540, SPLICE_, EXTENDED_, THISCALL_, ParseMessageBox8Item);
+    _PI->WriteByte(0x4A8BBE + 1, 2);
+
     // ПКМ в диалоге существа (работает на удачу и мораль)
     _PI->WriteLoHook(0x05F4E7F, DlgCreatureInfo_AtRightClick);
 
