@@ -3308,7 +3308,21 @@ typedef void (__thiscall * _func_AdvMgr_ActivateHero)(_ptr_ this_, int hero_id, 
 
 typedef _MapItem_* (__thiscall * _func_GetMapItem)(_ptr_ this_, int x, int y, int z);
 #define b_GetMapItem(x,y,z) ((_func_GetMapItem)0x4086D0)(*(_ptr_*)(o_AdvMgr + 92),(int)(x),(int)(y),(int)(z))
-
+enum EBottomViewType: _dword_
+{
+    NONE_OR_ENEMY,
+    NEW_DAY,
+    PLAYER_TEAMS,
+    HERO_WINDOW,
+    TOWN_WINDOW,
+    UNKNOWN,
+    RESOURCE,
+    TEXT_ONLY,
+    HIDDEN_OR_BLOCKED,
+	RESERVED_1,
+	RESERVED_2,
+    CUSTOM_MSG_BOX // msgbox.cpp
+};
 NOALIGN struct _AdvMgr_: _Struct_ // size: 952 bytes = 0x3B8
 {
   _Manager_ mgr;              // 0...56
@@ -3387,6 +3401,8 @@ NOALIGN struct _AdvMgr_: _Struct_ // size: 952 bytes = 0x3B8
   inline void HeroActive_DeMobilize() { CALL_3(void, __thiscall, 0x4175E0, this, 0, 1); }
   inline void SwapHeroes(_Hero_* heroLeft, _Hero_* heroRight) { CALL_3(void, __thiscall, 0x4AAA60, this, heroLeft, heroRight); }
   inline _MapItem_* GetMapItem(_int_ x, _int_ y, _int_ z) { return CALL_4(_MapItem_*, __thiscall, 0x4086D0, this->map, x, y, z); }
+  inline void RedrawInfoPanel(BOOL refreshScreen = 1) { return CALL_2(void, __thiscall, 0x402BC0, this->dlg, refreshScreen);}
+  
 };
 
 
@@ -3411,12 +3427,15 @@ NOALIGN struct _AdvMgrSave_: _Struct_
  // Фоновые звуки (ссылка на звук или 0, если не проигрывается).
  _Wav_* loop_sounds[70]; // +584
  _byte_ field_360[52]; //+864
- _int_ info_panel_current_type; //+916
- _int_ info_panel_current_id;   //+920
- _int_ info_panel_timer;        //+924 хранит время таймера переключения инфо-панели
- 
- _byte_ f398[24]; // +398h
- 
+ _int_ currentInfoPanelToDraw; //+916
+ struct InfoPanel
+ {
+     int type; //+920
+     int endTime; //+924 хранит время таймера переключения инфо-панели
+     int resourceTypeToDisplay;
+     int resourceAmountToDisplay;
+     _HString_ textToDisplay;
+ } infoPanelToCreate;
  
  //inline _Dlg_* GetDlg() {return *(_Dlg_**)((_ptr_)this + 68);}
  //inline _int_ GetCurrentInfoPanelID() {return *(_int_*)((_ptr_)this + 916);}

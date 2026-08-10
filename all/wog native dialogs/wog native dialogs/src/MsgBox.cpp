@@ -1,7 +1,129 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////// Callback диалога MsgBox
 /////////////////////////////////////////////////////////
-#include <memory>
+
+static bool IsPcxResourceName(const char *name)
+{
+    if (!name)
+        return false;
+
+    const std::string normalized = name;
+    return normalized.size() >= 4 && normalized.compare(normalized.size() - 4, 4, ".pcx") == 0;
+}
+
+// Adventure-map info-panel extension.  Type 9 is intentionally kept here,
+// together with the existing native-dialog helpers, so the panel lifetime is
+// handled by the same game code as the stock resource panel.
+struct AdventureInfoAsset
+{
+    int type;
+    int frame;
+    char *name = "AVArnd3.def";
+};
+
+struct AdventureInfoDefPanelData
+{
+    _HStr_ text;
+    AdventureInfoAsset assetInfos[2];
+    int timeToShow;
+    RECT backPos;
+};
+
+static AdventureInfoDefPanelData g_adventureInfoDefPanel;
+
+static void __fastcall AdventureInfoPanel_Dtor(_ptr_ panel)
+{
+    CALL_1(void, __thiscall, 0x451470, panel);
+}
+static void __fastcall AdventureInfoPanel_Update(_ptr_ panel)
+{
+    CALL_1(void, __thiscall, 0x451470, panel);
+}
+
+struct PanelInfoVTable
+{
+    DWORD _delete = 0x451440;
+};
+static void ShowAdventureInfoPanelMessageBox(AdventureInfoDefPanelData &data)
+{
+    _AdvMgrSave_ *mgr = reinterpret_cast<_AdvMgrSave_ *>(o_AdvMgr);
+    if (!mgr)
+        return;
+    mgr->infoPanelToCreate.type = EBottomViewType::CUSTOM_MSG_BOX;
+    if (!data.timeToShow)
+        data.timeToShow = 5000; // default timer value
+
+    mgr->infoPanelToCreate.endTime = o_GetTime() + data.timeToShow;
+}
+static _ptr_ AdventureInfoPanel_Build(_ptr_ panel, _Dlg_ *parent, AdventureInfoDefPanelData &panelData)
+{
+
+    CALL_1(_ptr_, __thiscall, 0x5AA650, panel); // panel ctor
+
+    *(_ptr_ *)panel = (_ptr_)0x63BB04;
+    auto &rect = panelData.backPos;
+    CALL_6(void, __thiscall, 0x5AA780, panel, rect.left, rect.top, rect.right, rect.bottom, parent);
+    *(_ptr_ *)panel = (_ptr_)0x63BB1C;
+
+    auto *background = b_DlgStaticPcx8_Create(0, 0, 176, 166, 2000, const_cast<char *>("AdStatOt.pcx"), 2048);
+    if (background)
+        CALL_3(void, __thiscall, 0x5AA7B0, panel, background, -1);
+
+    for (int i = 0; i < 2; ++i)
+    {
+        const auto &defInfo = panelData.assetInfos[i];
+        if (!defInfo.name)
+            continue;
+
+        _Def_ *def = o_LoadDef(defInfo.name);
+        if (!def)
+            continue;
+        const int x = (176 / 2) + (i ? 44 : -44) - static_cast<int>(def->width / 2);
+        auto *item =
+            b_DlgStaticDef_Create(x, 50, def->width, def->height, 2103 + i, defInfo.name, defInfo.frame, 0, 0, 0, 16);
+
+        if (!item)
+            continue;
+        CALL_3(void, __thiscall, 0x5AA7B0, panel, item, -1);
+    }
+
+    return panel;
+}
+
+static bool AdventureInfoPanel_Draw(_AdvMgrSave_ *advMgr, BOOL rebuildPanel)
+{
+    if (!rebuildPanel && advMgr->currentInfoPanelToDraw == EBottomViewType::CUSTOM_MSG_BOX)
+        return 0;
+
+    _Dlg_ *dlg = advMgr->dlg; // *reinterpret_cast<_Dlg_**>(reinterpret_cast<char*>(advMgr) + 68);
+    CALL_1(void, __thiscall, 0x403EE0, dlg);
+    advMgr->currentInfoPanelToDraw = EBottomViewType::CUSTOM_MSG_BOX;
+
+    _ptr_ panel = o_New(0x34);
+    if (panel)
+        AdventureInfoPanel_Build(panel, dlg, g_adventureInfoDefPanel);
+    CALL_2(void, __thiscall, 0x402C10, dlg, panel);
+    return 1;
+}
+
+_LHF_(AdventureInfoPanel_Type11)
+{
+    auto *advMgr = reinterpret_cast<_AdvMgrSave_ *>(c->esi);
+    const int panelType = advMgr->infoPanelToCreate.type;
+    if (panelType != EBottomViewType::CUSTOM_MSG_BOX)
+        return EXEC_DEFAULT;
+
+    const BOOL rebuildPanel = IntAt(c->ebp + 8);
+
+    Era::ExecErmCmd("IF:L^^");
+    c->eax = AdventureInfoPanel_Draw(advMgr, rebuildPanel);
+    c->return_address = 0x415E3C;
+    return NO_EXEC_DEFAULT;
+}
+
+extern "C" __declspec(dllexport) void __stdcall PrepareAdventureInfoPanelDefs(char **defNames, int *frames)
+{
+}
 
 // по большей части тупо переписан оригинальный код функции 0x4F1650,
 // но в этом коде расширено кол-во кликабельных желтых рамок.
@@ -34,11 +156,11 @@
 #pragma comment(linker, "/EXPORT:PrepareDlgPictures=_PrepareDlgPictures@12")
 #pragma comment(linker, "/EXPORT:PrepareDlgText=_PrepareDlgText@12")
 #pragma comment(linker, "/EXPORT:ShowPreparedDlg=_ShowPreparedDlg@24")
+#pragma comment(linker, "/EXPORT:PrepareAdventureInfoPanelDefs=_PrepareAdventureInfoPanelDefs@8")
 _LHF_(test_Faerie);
 
 int my_TimeClick_MsgBox;
 int my_TimeAnimate_MsgBox;
-struct Dlg8ItemInfo;
 
 struct ItemInfo
 {
@@ -56,21 +178,29 @@ struct Dlg8ItemInfo
 {
     static constexpr size_t MAX_SIZE = 8;
 
+  public:
     BOOL isValid = FALSE;
-    std::string assetName;
-    int initialDefFrame = 0;
-    std::string text;
-    std::string rmcHint;
-    _DlgStaticDef_ *defPtr = nullptr;
+    _HStr_ assetName;
+    _HStr_ text;
+    _HStr_ rmcHint;
+    union {
+        int defFrame;
+        BOOL isPcx16 = FALSE;
+    };
+    union {
+        BOOL createDlgPcx;
+        _DlgStaticDef_ *defPtr = nullptr;
+    };
 
   public:
-    static int initCounter;
+    static ItemInfo externalCallItemInfo;
+    static int itemsParsedPerDlg8;
 };
-int Dlg8ItemInfo::initCounter = 0;
+int Dlg8ItemInfo::itemsParsedPerDlg8 = 0;
+ItemInfo Dlg8ItemInfo::externalCallItemInfo;
 
 struct Dlg8Info
 {
-
   public:
     static constexpr size_t MAX_SIZE = Dlg8ItemInfo::MAX_SIZE;
 
@@ -83,10 +213,7 @@ struct Dlg8Info
     inline void Clear()
     {
         for (size_t i = 0; i < MAX_SIZE; i++)
-        {
             dlg8ItemInfos[i] = {};
-        }
-        // memset(dlg8ItemInfos, 0, sizeof(dlg8ItemInfos));
     }
 };
 
@@ -95,8 +222,8 @@ struct Dlg8Manager
     std::vector<std::unique_ptr<Dlg8Info>> dlg8ItemInfosVector;
     Dlg8Info dlg8InfoBuffer;
     BOOL bufferInUse = FALSE;
-    Dlg8Info *currentDlg8Info;
-    Patch *patches[5];
+    Dlg8Info *currentDlg8Info = nullptr;
+    Dlg8Info *nextDlg8Info = nullptr;
 
   public:
     inline void ClearPicturesBuffer()
@@ -104,7 +231,7 @@ struct Dlg8Manager
         for (size_t i = 0; i < Dlg8Info::MAX_SIZE; i++)
         {
             dlg8InfoBuffer.dlg8ItemInfos[i].assetName = {};
-            dlg8InfoBuffer.dlg8ItemInfos[i].initialDefFrame = {};
+            dlg8InfoBuffer.dlg8ItemInfos[i].defFrame = {};
         }
     }
     inline void ClearTextBuffer()
@@ -114,10 +241,6 @@ struct Dlg8Manager
             dlg8InfoBuffer.dlg8ItemInfos[i].text = {};
             dlg8InfoBuffer.dlg8ItemInfos[i].rmcHint = {};
         }
-    }
-    inline void Init(PatcherInstance *_PI)
-    {
-        _PI->WriteLoHook(0x04A8BC2, test_Faerie);
     }
 
 } dlg8Manager;
@@ -258,8 +381,48 @@ int Y_New_MsgBox_GetNextItem(int way, int currentItem)
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 
-// Callback диалога MsgBox (ПКМ обрабатывается в другом месте)
+void __stdcall Y_New_MsgBox_Call(HiHook *h, const char *Mes, int MType, int PosX, int PosY, int Type1, int SType1,
+                                 int Type2, int SType2, int Par, int Time2Show, int Type3, int SType3)
+{
 
+    if (MType == EBottomViewType::CUSTOM_MSG_BOX)
+    {
+        auto &data = g_adventureInfoDefPanel;
+        data.timeToShow = 1000;
+        if (Mes)
+            data.text.Set(Mes);
+
+        PrepareAdventureInfoPanelDefs(nullptr, nullptr);
+        int itmesCount = 0;
+        if (Type1 >= 0)
+        {
+            _Dlg8Item_ item;
+            CALL_3(void, __thiscall, 0x4F5540, &item, Type1, SType1);
+            itmesCount++;
+        }
+        if (Type2 >= 0)
+        {
+            _Dlg8Item_ item;
+            CALL_3(void, __thiscall, 0x4F5540, &item, Type2, SType2);
+            itmesCount++;
+        }
+        if (Type3 >= 0 && itmesCount < 2)
+        {
+            _Dlg8Item_ item;
+            CALL_3(void, __thiscall, 0x4F5540, &item, Type3, SType3);
+            itmesCount++;
+        }
+
+        // 0x4F5540
+        ShowAdventureInfoPanelMessageBox(g_adventureInfoDefPanel);
+        return;
+    }
+
+    return CALL_12(void, __fastcall, h->GetDefaultFunc(), Mes, MType, PosX, PosY, Type1, SType1, Type2, SType2, Par,
+                   Time2Show, Type3, SType3);
+}
+
+// Callback диалога MsgBox (ПКМ обрабатывается в другом месте)
 signed int __stdcall Y_New_MsgBox_Proc(HiHook *hook, _EventMsg_ *msg)
 {
     if (o_TimeClick)
@@ -277,25 +440,27 @@ signed int __stdcall Y_New_MsgBox_Proc(HiHook *hook, _EventMsg_ *msg)
     Dlg8Info *dlg8Info = dlg8Manager.currentDlg8Info;
     if (dlg8Info && dlg8Info->hasAnimation)
     {
-        const int itemsToAnimate = dlg8Info->usedSize;
         int time = o_GetTime();
         if (time - my_TimeAnimate_MsgBox > 100)
         {
+            const int itemsToAnimate = dlg8Info->usedSize;
             BOOL redraw = FALSE;
             for (size_t i = 0; i < itemsToAnimate; i++)
             {
                 auto &info = dlg8Info->dlg8ItemInfos[i];
-                if (info.initialDefFrame != -1 || info.defPtr == nullptr)
+                if (info.defFrame != -1 || info.defPtr == nullptr)
                     continue;
                 _DlgStaticDef_ *it = info.defPtr;
+                const int framesCount = it->def->groups[0]->frames_count;
+                if (framesCount < 2)
+                    continue;
+
                 const int defFrameIndex = it->def_frame_index;
                 const int lastFrameIndex = it->def->groups[0]->frames_count - 1;
-                if (defFrameIndex < lastFrameIndex)
-                    it->SetFrame(defFrameIndex + 1);
-                else
-                    it->SetFrame(0);
+                it->SetFrame(defFrameIndex < lastFrameIndex ? defFrameIndex + 1 : 0);
                 redraw = TRUE;
             }
+
             if (redraw)
                 dlg->Redraw();
             my_TimeAnimate_MsgBox = time;
@@ -490,34 +655,9 @@ signed int __stdcall Y_New_MsgBox_GetBitMask(HiHook *hook, _GameMgr_ *gm)
 {
     _Dlg_ *dlg = P_Dlg_MsgBox;
     dlg->AddItem(_DlgItem_::Create(0, 0, 0, 0, ERA_SPEC_DLG_ITEM_ID, 1));
-    SetMaskMsgBoxItId((1 << Dlg8ItemInfo::initCounter) - 1);
+    SetMaskMsgBoxItId((1 << Dlg8ItemInfo::itemsParsedPerDlg8) - 1);
 
     return CALL_1(signed int, __thiscall, hook->GetDefaultFunc(), gm);
-}
-
-struct H3Dlg8Item
-{
-    int picType;
-    int picSubType;
-    _HStr_ spriteName;
-    _HStr_ textBelow;
-    int spriteFrameIndex;
-    POINT spritePos;
-    int spriteHeight;
-    int spriteWidth;
-    POINT textPos;
-    int textHeight;
-    int textWidth;
-};
-
-char *nameArt = "dlg_npc1.def";
-_LHF_(test_Faerie)
-{
-    c->esp += 4;
-
-    c->Push((DWORD)nameArt);
-
-    return EXEC_DEFAULT;
 }
 
 DllExport BOOL __stdcall PrepareDlgPictures(char **assetNames, int *frameIds, size_t length)
@@ -534,13 +674,29 @@ DllExport BOOL __stdcall PrepareDlgPictures(char **assetNames, int *frameIds, si
     {
         if (char *assetName = assetNames[i])
         {
-            auto &info = dlg8ItemInfos[infoCounter++];
+            auto &info = dlg8ItemInfos[infoCounter];
+            info.assetName.Set(assetName); // ResolveAssetName(assetName);
+            if (info.assetName.Empty())
+            {
+                info = {};
+                continue;
+            }
+
+            if (IsPcxResourceName(assetName))
+            {
+                info.createDlgPcx = TRUE;
+            }
+            else
+            {
+                const int defFrame = frameIds[i];
+                info.defFrame = defFrame;
+                if (defFrame <= -1)
+                    dlg8Info.hasAnimation = TRUE;
+            }
+            // only if name isn't changed , we can use the defPtr to animate the icon
+
             info.isValid = TRUE;
-            info.assetName = assetName;
-            const int defFrame = frameIds[i];
-            info.initialDefFrame = defFrame;
-            if (defFrame == -1)
-                dlg8Info.hasAnimation = TRUE;
+            infoCounter++;
         }
     }
     dlg8Manager.bufferInUse = TRUE;
@@ -557,13 +713,10 @@ DllExport BOOL __stdcall PrepareDlgText(char **descriptions, char **rmcHints, si
     auto &dlg8ItemInfos = dlg8Info.dlg8ItemInfos;
     for (size_t i = 0; i < length; i++)
     {
-        if (dlg8ItemInfos[i].isValid)
-        {
-            if (descriptions[i])
-                dlg8ItemInfos[i].text = descriptions[i];
-            if (rmcHints[i])
-                dlg8ItemInfos[i].rmcHint = rmcHints[i];
-        }
+        if (descriptions[i])
+            dlg8ItemInfos[i].text.Set(descriptions[i]);
+        if (rmcHints[i])
+            dlg8ItemInfos[i].rmcHint.Set(rmcHints[i]);
     }
     dlg8Manager.bufferInUse = TRUE;
 
@@ -590,15 +743,15 @@ DllExport BOOL __stdcall ShowPreparedDlg(char *text, int type, int x, int y, int
         if (info.isValid)
         {
             count++;
-            item.assetName = info.assetName.c_str();
-            item.defFrame = info.initialDefFrame;
+            item.assetName = info.assetName.c_str;
+            item.defFrame = info.defFrame;
         }
         items.Append(item);
     }
-    // dlg8Manager.ApplyPatches();
+
     dlg8Manager.bufferInUse = TRUE;
-    Dlg8ItemInfo::initCounter = 0;
-    dlg8Manager.currentDlg8Info = &dlg8Manager.dlg8InfoBuffer;
+    Dlg8ItemInfo::itemsParsedPerDlg8 = 0;
+    dlg8Manager.nextDlg8Info = &dlg8Manager.dlg8InfoBuffer;
 
     if (count > 3)
     {
@@ -610,8 +763,6 @@ DllExport BOOL __stdcall ShowPreparedDlg(char *text, int type, int x, int y, int
         CALL_12(void, __fastcall, 0x4F6C00, text, type, x, y, items[0].defType, items[0].defFrame, items[1].defType,
                 items[1].defFrame, -1, timeToShow, items[2].defType, items[2].defFrame);
     }
-
-    // dlg8Manager.UndoPatches();
 
     int selection = o_WndMgr->result_dlg_item_id;
     selection = selection >= MSG_10_IT0 ? selection - MSG_10_IT0 : -1;
@@ -628,88 +779,222 @@ _LHF_(H3Dlg8_H3DlgDef_RightClick)
         const auto item = reinterpret_cast<_DlgItem_ *>(c->ecx);
         const int index = item->id - 30729;
         const auto &hint = dlg8Info->dlg8ItemInfos[index].rmcHint;
-        if (dlg8Info->dlg8ItemInfos[index].isValid && !hint.empty())
-            b_MsgBox(const_cast<char *>(hint.c_str()), 4);
+        if (!hint.Empty())
+        {
+            b_MsgBox(hint.c_str, 4);
+            // jump over original code
+            c->return_address = 0x4F15C0;
+            return NO_EXEC_DEFAULT;
+        }
+    }
+    return EXEC_DEFAULT;
+}
+// @daemon_n
+// Исправление отображения кадров иконок с моралью и удачей в месседжбоксе
+void __stdcall _Dlg8Item_Parser(HiHook *h, _Dlg8Item_ *dlg8Item, int picType, const int picSubtype)
+{
+    // получить тип картинки
+    INT storedPicSubtype = picSubtype;
+
+    const BOOL isMoraleOrLuck = (picType == 11 || picType == 14 || picType == 13 || picType == 16);
+    if (isMoraleOrLuck)
+    {
+        int value = picSubtype ? picSubtype : 1;
+        char buffer[16];
+        char *format =
+            picType == 11 || picType == 14 ? "%+d" : "%d"; // для положительных и отрицательных значений удачи и морали
+        sprintf(buffer, format, value);
+        dlg8Item->textBelow.Set(buffer);
     }
 
+    CALL_3(void, __thiscall, h->GetDefaultFunc(), dlg8Item, picType, picSubtype);
+
+    if (isMoraleOrLuck)
+    {
+        // если +/- удача или мораль и значение выше 1
+        const int absSubtype = abs(storedPicSubtype);
+        if (absSubtype > 1 && absSubtype < 4)
+            dlg8Item->spriteFrameIndex = 3 + storedPicSubtype;
+    }
+}
+BOOL IsDefOfPcx(std::string &assetName)
+{
+    if (assetName.empty())
+        return FALSE;
+
+    const size_t size = assetName.size();
+    if (size < 5)
+        return FALSE;
+    std::string toLower = assetName;
+    std::transform(toLower.begin(), toLower.end(), toLower.begin(), ::tolower);
+    return toLower.compare(toLower.size() - 4, 4, ".pcx") == 0 || toLower.compare(toLower.size() - 4, 4, ".def") == 0;
+}
+std::string GetAssetNameFromType(const int picType)
+{
+
+    if (picType > 1000000000)
+    {
+        Era::y[1] = picType; // read string from erm
+        Era::ExecErmCmd("SN:Bzy1/d/?z1");
+        std::string result = Era::z[1];
+        if (IsDefOfPcx(result))
+            return result;
+    }
+
+    std::string result = reinterpret_cast<LPCSTR>(picType);
+
+    if (IsDefOfPcx(result))
+        return result;
+
+    if (picType > 1000000000)
+    {
+        result = *reinterpret_cast<LPCSTR *>(picType);
+        if (IsDefOfPcx(result))
+            return result;
+    }
+    return {};
+}
+_LHF_(H3Dlg8Item_CompareItemTypeInsideParser)
+{
+
+    const int id = Dlg8ItemInfo::itemsParsedPerDlg8++;
+
+    if (id == 0 && dlg8Manager.bufferInUse)
+    {
+        dlg8Manager.nextDlg8Info = &dlg8Manager.dlg8InfoBuffer;
+    }
+    auto dlg8Info = dlg8Manager.nextDlg8Info;
+    _Dlg8Item_ *item = reinterpret_cast<_Dlg8Item_ *>(c->ebx);
+    _HStr_ *defNameToSet = nullptr;
+
+    Dlg8ItemInfo *dlg8ItemInfoCurrent = nullptr;
+
+    BOOL assetNameChanged = FALSE;
+    const int picType = c->edi;
+    const int picSubtype = c->eax;
+
+    if (dlg8Info)
+    {
+        auto &info = dlg8Info->dlg8ItemInfos[id];
+        dlg8ItemInfoCurrent = &info;
+
+        if (info.isValid)
+        {
+            defNameToSet = &info.assetName;
+            item->spriteFrameIndex = info.defFrame >= 0 ? info.defFrame : 0;
+            assetNameChanged = true;
+        }
+
+        if (!info.text.Empty())
+            item->textBelow.Set(info.text.c_str);
+    }
+
+    if (!assetNameChanged && picType > 100000)
+    {
+        dlg8Manager.bufferInUse = TRUE;
+        dlg8Info = dlg8Manager.nextDlg8Info = &dlg8Manager.dlg8InfoBuffer;
+        
+        auto &info = dlg8Info->dlg8ItemInfos[id];
+        dlg8ItemInfoCurrent = &info;
+
+        std::string &assetName = GetAssetNameFromType(picType);
+
+        if (assetName.empty())
+            return EXEC_DEFAULT;
+
+        info.isValid = TRUE;
+        info.assetName.Set(assetName.c_str());
+
+        if (picSubtype < 0)
+        {
+            info.defFrame = -1;
+            dlg8Info->hasAnimation = TRUE;
+            item->spriteFrameIndex = 0;
+        }
+        else
+            item->spriteFrameIndex = picSubtype;
+
+        defNameToSet = &info.assetName;
+
+        dlg8Manager.nextDlg8Info = &dlg8Manager.dlg8InfoBuffer;
+    }
+
+    if (defNameToSet)
+    {
+        char *buf = defNameToSet->c_str;
+
+        // char newName[12] = "tefeff.pcx";
+        // Era::LoadImageAsPcx16("text.png", newName, 0, 0, 0, 0, Era::RESIZE_ALG_NO_RESIZE);
+        // buf = newName;
+        // store asset name inside dlg8item
+        item->spriteName.Set(buf);
+        item->picType = DWORD(buf);
+
+        // if not pcx allow return to default proc
+        if (!IsPcxResourceName(buf))
+        {
+            c->return_address = 0x4F6229;
+            return NO_EXEC_DEFAULT;
+        }
+
+        // sest flag to create DlgStaticPcx8 instead of DlgStaticDef
+        dlg8ItemInfoCurrent->createDlgPcx = TRUE;
+
+        _Pcx_ *pcx = o_LoadPcx8(buf);
+        dlg8ItemInfoCurrent->isPcx16 = 1; // picSubtype > 0; // pcx->v_table == (_ptr_*)0x063B9C8;
+
+        auto dlg8Item = reinterpret_cast<_Dlg8Item_ *>(c->ebx);
+        dlg8Item->spriteWidth = pcx->width + 2;
+        dlg8Item->spriteHeight = pcx->height + 2;
+
+        pcx->DerefOrDestruct();
+        // jump over def-deref
+        c->return_address = 0x04F6255;
+        return NO_EXEC_DEFAULT;
+    }
     return EXEC_DEFAULT;
 }
 
-_LHF_(H3Dlg8Item_Parser)
+// if dlg8ItemInfo->createDlgPcx is TRUE, then create a new DlgStaticPcx8 or DlgStaticPcx16
+// and return it at address after original DlgStaticDef constructor
+_LHF_(H3Dlg8_H3DlgDef_BeforeCtor)
 {
+    const int index = IntAt(c->ebp - 0x14);
+    auto dlg8Info = dlg8Manager.nextDlg8Info;
 
-    const int id = Dlg8ItemInfo::initCounter++;
-
-    if (id == 0 &&  dlg8Manager.bufferInUse)
-    {
-        dlg8Manager.currentDlg8Info = &dlg8Manager.dlg8InfoBuffer;
-    }
-    auto currentDlg8Info = dlg8Manager.currentDlg8Info;
-
-    if (!currentDlg8Info)
-    {
-
-        // if (c->edi > 0xFFFF)
-        //{
-        //     H3Dlg8Item *item = reinterpret_cast<H3Dlg8Item *>(c->ebx);
-        //     // item->spriteName.Set((char*)c->edi);
-        //     item->textBelow.Set(Era::IntToStr(c->edi).c_str());
-        //     if (c->edi > 1000000000)
-        //     {
-        //         item->spriteName.Set("resource.def");
-        //     }
-
-        //    c->return_address = 0x4F6229;
-        //    return EXEC_DEFAULT;
-        //    // 0x4F61DD
-        //}
+    if (!dlg8Info || !dlg8Info->dlg8ItemInfos[index].createDlgPcx)
         return EXEC_DEFAULT;
-    }
 
-    auto &info = currentDlg8Info->dlg8ItemInfos[id];
-    if (!info.isValid)
-        return EXEC_DEFAULT;
-    H3Dlg8Item *item = reinterpret_cast<H3Dlg8Item *>(c->ebx);
+    auto &dlg8ItemInfo = dlg8Info->dlg8ItemInfos[index];
 
-    if (!info.assetName.empty())
-    {
-        item->picType = (DWORD)info.assetName.data();
-        item->spriteName.Set(info.assetName.c_str());
-    }
+    ByteAt(c->ebp - 0x4) = 0x13;
+    c->esp += 4; // remove prev allocation size from stack
 
-    int picSubtype = c->eax;
+    _Dlg8Item_ *item = reinterpret_cast<_Dlg8Item_ *>(c->esi - 0x1C);
 
-    if (!info.text.empty())
-        item->textBelow.Set(info.text.c_str());
-    if (info.initialDefFrame >= 0)
-        item->spriteFrameIndex = info.initialDefFrame;
+    _DlgItem_ *dlgPcx = nullptr;
+    if (dlg8ItemInfo.isPcx16)
+        dlgPcx = b_DlgStaticPcx16_Create(item->spritePos.x + 1, item->spritePos.y + 1, item->spriteWidth - 2,
+                                         item->spriteHeight - 2, -1, item->spriteName.c_str, 2048);
+    else
+        dlgPcx = b_DlgStaticPcx8_Create(item->spritePos.x + 1, item->spritePos.y + 1, item->spriteWidth - 2,
+                                        item->spriteHeight - 2, -1, item->spriteName.c_str, 2048);
 
-    c->return_address = 0x4F6229;
-
+    dlg8ItemInfo.createDlgPcx = FALSE;
+    IntAt(c->ebp - 0x5C) = (int)dlgPcx;
+    c->eax = (int)dlgPcx;
+    c->return_address = 0x4F783D;
     return NO_EXEC_DEFAULT;
 }
 
+// else we store DlgStaticDef pointer to allow animation of it
 _LHF_(H3Dlg8_H3DlgDef_Ctor)
 {
-
-    if (dlg8Manager.bufferInUse)
-    {
-        const int index = IntAt(c->ebp - 0x14);
-        dlg8Manager.dlg8InfoBuffer.dlg8ItemInfos[index].defPtr = reinterpret_cast<_DlgStaticDef_ *>(c->ecx);
-    }
+    const int index = IntAt(c->ebp - 0x14);
+    dlg8Manager.dlg8InfoBuffer.dlg8ItemInfos[index].defPtr = reinterpret_cast<_DlgStaticDef_ *>(c->ecx);
     return EXEC_DEFAULT;
 }
 
-_LHF_(Y_New_MsgBox_ChangeDefName)
-{
-    c->ecx = (int)nameArt;
-    return NO_EXEC_DEFAULT;
-}
-_LHF_(Y_New_MsgBox_ChangeDefType)
-{
-    c->Push((int)nameArt);
-    return NO_EXEC_DEFAULT;
-}
 _LHF_(H3Dlg8_RightBeforeShow)
 {
 
@@ -720,22 +1005,21 @@ _LHF_(H3Dlg8_RightBeforeShow)
     {
         dlg8Manager.bufferInUse = FALSE;
 
-        auto& buffer = dlg8Manager.dlg8InfoBuffer;
+        const size_t itemsCreated = Dlg8ItemInfo::itemsParsedPerDlg8;
+
+        auto &buffer = dlg8Manager.dlg8InfoBuffer;
+
         // clear not used items
 
-        const size_t itemsCreated = Dlg8ItemInfo::initCounter;
         buffer.usedSize = itemsCreated;
         for (size_t i = itemsCreated; i < Dlg8ItemInfo::MAX_SIZE; i++)
-        {
             buffer.dlg8ItemInfos[i] = {};
-        }
-
 
         vec.back() = std::make_unique<Dlg8Info>(buffer);
-        dlg8Manager.dlg8InfoBuffer.Clear();
+        buffer.Clear();
     }
 
-    Dlg8ItemInfo::initCounter = 0;
+    Dlg8ItemInfo::itemsParsedPerDlg8 = 0;
 
     dlg8Manager.currentDlg8Info = vec.back().get();
     return EXEC_DEFAULT;
@@ -743,10 +1027,15 @@ _LHF_(H3Dlg8_RightBeforeShow)
 _LHF_(H3Dlg8_RightAfterClose)
 {
     auto &vec = dlg8Manager.dlg8ItemInfosVector;
-    if (!vec.empty())
+    size_t size = vec.size();
+    if (size--)
         vec.pop_back();
 
-    dlg8Manager.currentDlg8Info = vec.empty() ? nullptr : vec.back().get();
+    dlg8Manager.currentDlg8Info = size ? vec.back().get() : nullptr;
+
+    // if last dialog closed, clear data
+    if (c->ecx == 0 && size)
+        vec.clear();
 
     return EXEC_DEFAULT;
 }
@@ -755,18 +1044,26 @@ _LHF_(H3Dlg8_RightAfterClose)
 
 void Dlg_MsgBox(PatcherInstance *_PI)
 {
+
+    // новый конструктор диалога MsgBox
+    _PI->WriteHiHook(0x4F6C00, SPLICE_, EXTENDED_, FASTCALL_, Y_New_MsgBox_Call);
+
     // новый Callback диалога MsgBox
     _PI->WriteHiHook(0x4F1650, SPLICE_, EXTENDED_, THISCALL_, Y_New_MsgBox_Proc);
 
     // установка дефолтной желтой рамки (как буд-то она уже выбранна)
     _PI->WriteLoHook(0x4F7B46, Y_New_MsgBox_SetDefaultFrameEnabled);
-    //  _PI->WriteLoHook(0x04510B5, Y_New_MsgBox_ChangeDefType);
-    // _PI->WriteLoHook(0x045107D, Y_New_MsgBox_ChangeDefName);
 
     // создание элемента для хранения "разрешенных к выбору элементов"
     _PI->WriteHiHook(0x4F71BB, CALL_, EXTENDED_, THISCALL_, Y_New_MsgBox_GetBitMask);
     _PI->WriteLoHook(0x4F11E7, H3Dlg8_H3DlgDef_RightClick);
-    _PI->WriteLoHook(0x4F558D, H3Dlg8Item_Parser);
+    // Исправление отображения лишь 1 удачи и морали в иконках (@daemon_n)
+    // основной парсер картинок
+    _PI->WriteHiHook(0x4F5540, SPLICE_, EXTENDED_, THISCALL_, _Dlg8Item_Parser);
+    // внутри парсера надо изменить def, чтобы ф-ция сама посчитала размеры и текст
+    _PI->WriteLoHook(0x4F558D, H3Dlg8Item_CompareItemTypeInsideParser);
+
+    _PI->WriteLoHook(0x4F77F8, H3Dlg8_H3DlgDef_BeforeCtor);
     _PI->WriteLoHook(0x4F7838, H3Dlg8_H3DlgDef_Ctor);
     _PI->WriteLoHook(0x4F7B5E, H3Dlg8_RightBeforeShow);
     _PI->WriteLoHook(0x4F7BD5, H3Dlg8_RightAfterClose);
@@ -779,9 +1076,13 @@ void Dlg_MsgBox(PatcherInstance *_PI)
     if (o_HD_Y >= 664)
         _PI->WriteDword(0x4F662F + 1, o_HD_Y - 440);
 
-    // установка хуков для ПКМ процедуры и конструктора H3Dlg8Item
-    dlg8Manager.Init(_PI);
-
+    // Adventure-map info panel extension: type 11 (EBottomViewType::CUSTOM_MSG_BOX) draws two caller-supplied DEFs.
+    _PI->WriteLoHook(0x415D6E, AdventureInfoPanel_Type11);
+    auto &rect = g_adventureInfoDefPanel.backPos;
+    rect.left = IntAt(0x450F35 + 1);
+    rect.top = IntAt(0x450F30 + 1);
+    rect.right = IntAt(0x450F2B + 1);
+    rect.bottom = IntAt(0x450F26 + 1);
     if (HINSTANCE hEra = GetModuleHandleA("era.dll"))
     {
         GetDefaultMsgBoxItId = (TGetDefaultMsgBoxItId)GetProcAddress(hEra, "_GetPreselectedDialog8ItemId");
