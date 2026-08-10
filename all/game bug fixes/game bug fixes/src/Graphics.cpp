@@ -19,39 +19,6 @@ int __stdcall Y_RestoreBattleShadow(LoHook *h, HookContext *c)
     return EXEC_DEFAULT;
 }
 
-// @daemon_n
-// Исправление отображения кадров иконок с мораль и удачей в месседжбоксе
-void __stdcall ParseMessageBox8Item(HiHook *h, _dword_ dlg, const int picType, const int picSubtype)
-{
-    // получить тип картинки
-    INT storedPicSubtype = picSubtype;
-
-    CALL_3(void, __thiscall, h->GetDefaultFunc(), dlg, picType, picSubtype);
-
-    if (storedPicSubtype < -1)
-    {
-        storedPicSubtype *= -1;
-    }
-    // если +/- удача или мораль и значение выше 1
-    if (storedPicSubtype > 1 && storedPicSubtype < 4)
-    {
-        switch (picType)
-        {
-        case 11:
-        case 14:
-            IntAt(dlg + 0x28) = 3 + storedPicSubtype;
-
-            break;
-        case 13:
-        case 16:
-            IntAt(dlg + 0x28) = 3 - storedPicSubtype;
-
-            break;
-        default:
-            break;
-        }
-    }
-}
 void ChangeStackValue(HookContext *c, int newValue)
 {
     if (newValue < 1)
@@ -743,9 +710,7 @@ void Graphics(PatcherInstance *_PI)
     // Исправление описания текста морали для Ангелов (© Hawaiing)
     _PI->WriteCodePatch(0x760A4F, "%n", 5); // 5 nops
 
-    // Исправление отображения лишь 1 удачи и морали в иконках (@daemon_n)
-    // основной парсер картинок
-   // _PI->WriteHiHook(0x04F5540, SPLICE_, EXTENDED_, THISCALL_, ParseMessageBox8Item);
+
     _PI->WriteByte(0x4A8BBE + 1, 2);
 
     // ПКМ в диалоге существа (работает на удачу и мораль)
