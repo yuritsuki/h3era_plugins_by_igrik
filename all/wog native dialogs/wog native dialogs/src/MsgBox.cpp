@@ -2,15 +2,6 @@
 ///////////////////////////////////////////// Callback диалога MsgBox
 /////////////////////////////////////////////////////////
 
-static bool IsPcxResourceName(const char *name)
-{
-    if (!name)
-        return false;
-
-    const std::string normalized = name;
-    return normalized.size() >= 4 && normalized.compare(normalized.size() - 4, 4, ".pcx") == 0;
-}
-
 // Adventure-map info-panel extension.  Type 9 is intentionally kept here,
 // together with the existing native-dialog helpers, so the panel lifetime is
 // handled by the same game code as the stock resource panel.
@@ -20,6 +11,35 @@ struct AdventureInfoAsset
     int frame;
     char *name = "AVArnd3.def";
 };
+static char *validExtensions[] = {".pcx", ".def", ".pcx16"};
+enum eAssetType : int
+{
+    ASSET_TYPE_NO = 0,
+    ASSET_TYPE_PCX = 0x1,
+    ASSET_TYPE_DEF = 0x2,
+    ASSET_TYPE_PCX16 = 0x4,
+    ASSET_TYPE_ANY_PCX = 0x5,
+    ASSET_TYPE_ALL = 0x7,
+};
+static eAssetType IsGameAssetType(const std::string &s, const eAssetType type)
+{
+
+    const size_t len = s.size();
+    if (len < 5 || len > 12)
+        return ASSET_TYPE_NO;
+    const char *ext = s.c_str() + len - 4;
+    constexpr size_t validExtensionsCount = std::size(validExtensions);
+    for (size_t i = 0; i < validExtensionsCount; i++)
+    {
+        if (type & (1 << i))
+        {
+            if (_stricmp(ext, validExtensions[i]) == 0)
+                return static_cast<eAssetType>(1 << i);
+        }
+    }
+
+    return ASSET_TYPE_NO;
+}
 
 struct AdventureInfoDefPanelData
 {
@@ -174,23 +194,139 @@ struct ItemInfo
     };
 };
 
+static bool TryReadString(const char *ptr, char *buffer, size_t maxLength)
+{
+    if (!ptr || !buffer || !maxLength)
+        return false;
+
+    __try
+    {
+        for (size_t i = 0; i <= maxLength; ++i)
+        {
+            buffer[i] = ptr[i];
+
+            if (!buffer[i])
+                return i != 0;
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+
+    return false;
+}
+
+static bool TryReadStringPointer(int value, char *buffer, size_t maxLength)
+{
+    if (value <= 0x10000)
+        return false;
+
+    __try
+    {
+        const char *ptr = *reinterpret_cast<const char **>(value);
+        return TryReadString(ptr, buffer, maxLength);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
+static bool TryGetString(int value, char *buffer, size_t maxLength)
+{
+    if (value <= 0x10000)
+        return false;
+
+    // char*
+    if (TryReadString(reinterpret_cast<const char *>(value), buffer, maxLength))
+        return true;
+
+    // char**
+    return TryReadStringPointer(value, buffer, maxLength);
+}
+
+std::string GetSubtypeFromType(int subtype)
+{
+    char buffer[MAX_PATH];
+
+    if (TryGetString(subtype, buffer, MAX_PATH - 1))
+        return buffer;
+
+    return {};
+}
+
+std::string GetStringFromInt(const int vAddress, const BOOL isExtraFile)
+{
+    if (vAddress > 1000000000)
+    {
+        // store prev erm data
+        const int savedY1 = Era::y[1];
+        strcpy_s(myString2, 512, Era::z[1]);
+
+        Era::y[1] = vAddress;
+
+        Era::ExecErmCmd("SN:Bzy1/d/?z1");
+        strcpy_s(myString1, 512, Era::z[1]);
+
+        // restore prev erm data
+        Era::y[1] = savedY1;
+        strcpy_s(Era::z[1], 512, myString2);
+
+        if (_stricmp(myString1, "STRING NOT FOUND") != 0)
+            return myString1;
+    }
+
+    if (TryGetString(vAddress, myString1, isExtraFile ? MAX_PATH : 12))
+        return myString1;
+
+    return {};
+}
+
 struct Dlg8ItemInfo
 {
     static constexpr size_t MAX_SIZE = 8;
 
   public:
-    BOOL isValid = FALSE;
+    BOOL assetIsValid = FALSE;
     _HStr_ assetName;
     _HStr_ text;
     _HStr_ rmcHint;
     union {
         int defFrame;
-        BOOL isPcx16 = FALSE;
+        BOOL isPcx16;
+        char *pathToExternalFile = nullptr;
     };
     union {
         BOOL createDlgPcx;
         _DlgStaticDef_ *defPtr = nullptr;
     };
+
+  public:
+    BOOL InitCutomAsset(const ItemInfo &itemInfo)
+    {
+        std::string normalized = GetStringFromInt(itemInfo.defType, FALSE);
+        const eAssetType assetType = IsGameAssetType(normalized, ASSET_TYPE_ALL);
+        switch (assetType)
+        {
+        case eAssetType::ASSET_TYPE_PCX16:
+        case eAssetType::ASSET_TYPE_PCX:
+            createDlgPcx = TRUE;
+            isPcx16 = itemInfo.defFrame == 16;
+            break;
+        case eAssetType::ASSET_TYPE_DEF:
+            defFrame = itemInfo.defFrame;
+            if (defFrame < -1)
+                defFrame = -1;
+            break;
+        default:
+            *this = {};
+            return FALSE;
+        }
+        assetName.Set(normalized.c_str());
+        assetIsValid = TRUE;
+
+        return assetIsValid;
+    }
 
   public:
     static ItemInfo externalCallItemInfo;
@@ -675,28 +811,16 @@ DllExport BOOL __stdcall PrepareDlgPictures(char **assetNames, int *frameIds, si
         if (char *assetName = assetNames[i])
         {
             auto &info = dlg8ItemInfos[infoCounter];
-            info.assetName.Set(assetName); // ResolveAssetName(assetName);
-            if (info.assetName.Empty())
+            ItemInfo itemInfo;
+            itemInfo.assetName = assetName;
+            itemInfo.defFrame = frameIds[i];
+            if (info.InitCutomAsset(itemInfo))
             {
-                info = {};
-                continue;
-            }
-
-            if (IsPcxResourceName(assetName))
-            {
-                info.createDlgPcx = TRUE;
-            }
-            else
-            {
-                const int defFrame = frameIds[i];
-                info.defFrame = defFrame;
-                if (defFrame <= -1)
+                if (info.defFrame == -1)
                     dlg8Info.hasAnimation = TRUE;
-            }
-            // only if name isn't changed , we can use the defPtr to animate the icon
 
-            info.isValid = TRUE;
-            infoCounter++;
+                infoCounter++;
+            }
         }
     }
     dlg8Manager.bufferInUse = TRUE;
@@ -740,7 +864,7 @@ DllExport BOOL __stdcall ShowPreparedDlg(char *text, int type, int x, int y, int
         auto &info = dlg8ItemInfos[i];
         ItemInfo item;
 
-        if (info.isValid)
+        if (info.assetIsValid)
         {
             count++;
             item.assetName = info.assetName.c_str;
@@ -817,142 +941,131 @@ void __stdcall _Dlg8Item_Parser(HiHook *h, _Dlg8Item_ *dlg8Item, int picType, co
             dlg8Item->spriteFrameIndex = 3 + storedPicSubtype;
     }
 }
-BOOL IsDefOfPcx(std::string &assetName)
-{
-    if (assetName.empty())
-        return FALSE;
 
-    const size_t size = assetName.size();
-    if (size < 5)
-        return FALSE;
-    std::string toLower = assetName;
-    std::transform(toLower.begin(), toLower.end(), toLower.begin(), ::tolower);
-    return toLower.compare(toLower.size() - 4, 4, ".pcx") == 0 || toLower.compare(toLower.size() - 4, 4, ".def") == 0;
-}
-std::string GetAssetNameFromType(const int picType)
-{
-
-    if (picType > 1000000000)
-    {
-        Era::y[1] = picType; // read string from erm
-        Era::ExecErmCmd("SN:Bzy1/d/?z1");
-        std::string result = Era::z[1];
-        if (IsDefOfPcx(result))
-            return result;
-    }
-
-    std::string result = reinterpret_cast<LPCSTR>(picType);
-
-    if (IsDefOfPcx(result))
-        return result;
-
-    if (picType > 1000000000)
-    {
-        result = *reinterpret_cast<LPCSTR *>(picType);
-        if (IsDefOfPcx(result))
-            return result;
-    }
-    return {};
-}
+/**
+*
+  1. Тип элемента может хранить имя def, тогда:
+    - если подтип `>=0`, то интерпретируется как номер кадра;
+    - если подтип `==-1`, то трактуется как "анимировать";
+  2. Тип элемента может хранить имя pcx (только если имя валидно), тогда вместо DlgDef создаётся иной элемент:
+    - если подтип `==0`, то создаётся DlgPcx8;
+    - если подтип `==16`, то создаётся DlgPcx16;
+    - если подтип интерпретируется в строку, то безусловно загружается вызывается `Era::LoadImageAsPcx16`;
+    */
 _LHF_(H3Dlg8Item_CompareItemTypeInsideParser)
 {
 
-    const int id = Dlg8ItemInfo::itemsParsedPerDlg8++;
+    // at first we check if we have prepared dlg8Info from extra;
+    // if not we use the buffer to store the info
+    // if (id == 0 && dlg8Manager.bufferInUse)
 
-    if (id == 0 && dlg8Manager.bufferInUse)
-    {
-        dlg8Manager.nextDlg8Info = &dlg8Manager.dlg8InfoBuffer;
-    }
-    auto dlg8Info = dlg8Manager.nextDlg8Info;
-    _Dlg8Item_ *item = reinterpret_cast<_Dlg8Item_ *>(c->ebx);
-    _HStr_ *defNameToSet = nullptr;
-
-    Dlg8ItemInfo *dlg8ItemInfoCurrent = nullptr;
-
-    BOOL assetNameChanged = FALSE;
+    dlg8Manager.nextDlg8Info = &dlg8Manager.dlg8InfoBuffer;
     const int picType = c->edi;
     const int picSubtype = c->eax;
 
-    if (dlg8Info)
-    {
-        auto &info = dlg8Info->dlg8ItemInfos[id];
-        dlg8ItemInfoCurrent = &info;
+    _Dlg8Item_ *dlg8Item = reinterpret_cast<_Dlg8Item_ *>(c->ebx);
+    auto dlg8Info = dlg8Manager.nextDlg8Info = &dlg8Manager.dlg8InfoBuffer;
 
-        if (info.isValid)
-        {
-            defNameToSet = &info.assetName;
-            item->spriteFrameIndex = info.defFrame >= 0 ? info.defFrame : 0;
-            assetNameChanged = true;
-        }
+    const int id = Dlg8ItemInfo::itemsParsedPerDlg8++;
 
-        if (!info.text.Empty())
-            item->textBelow.Set(info.text.c_str);
-    }
+    auto &info = dlg8Info->dlg8ItemInfos[id];
 
-    if (!assetNameChanged && picType > 100000)
+    // if we have text it is changed unconditionally
+    if (!info.text.Empty())
+        dlg8Item->textBelow.Set(info.text.c_str);
+
+    if (info.assetIsValid)
     {
         dlg8Manager.bufferInUse = TRUE;
-        dlg8Info = dlg8Manager.nextDlg8Info = &dlg8Manager.dlg8InfoBuffer;
-        
-        auto &info = dlg8Info->dlg8ItemInfos[id];
-        dlg8ItemInfoCurrent = &info;
 
-        std::string &assetName = GetAssetNameFromType(picType);
+        // assetNameToSet = &info.assetName;
+        //  dlg8Item->spriteFrameIndex = info.defFrame >= 0 ? info.defFrame : 0;
+        //  assetNameChanged = true;
+    }
+    // if prepared info is not valid, we try to get asset name from picType
+    else if (picType > 100000)
+    {
+        ItemInfo itemInfo;
+        itemInfo.defType = picType;
+        itemInfo.defFrame = picSubtype;
 
-        if (assetName.empty())
+        if (info.InitCutomAsset(itemInfo))
+        {
+            dlg8Manager.bufferInUse = TRUE;
+        }
+        else // if we can't init custom asset, we set picType to -1 to avoid crash
+        {
+
+            dlg8Item->picType = -1;
+            dlg8Item->picSubType = 0;
+            c->return_address = 0x04F6388;
+            return NO_EXEC_DEFAULT;
+        }
+
+        std::string &assetName = GetStringFromInt(picType, FALSE);
+
+        if (!IsGameAssetType(assetName, ASSET_TYPE_ALL))
             return EXEC_DEFAULT;
 
-        info.isValid = TRUE;
         info.assetName.Set(assetName.c_str());
 
         if (picSubtype < 0)
         {
             info.defFrame = -1;
             dlg8Info->hasAnimation = TRUE;
-            item->spriteFrameIndex = 0;
+            dlg8Item->spriteFrameIndex = 0;
         }
         else
-            item->spriteFrameIndex = picSubtype;
-
-        defNameToSet = &info.assetName;
-
-        dlg8Manager.nextDlg8Info = &dlg8Manager.dlg8InfoBuffer;
+            dlg8Item->spriteFrameIndex = picSubtype;
     }
+    else
+        return EXEC_DEFAULT;
 
-    if (defNameToSet)
+    if (info.assetIsValid)
     {
-        char *buf = defNameToSet->c_str;
+        char *buf = info.assetName.c_str;
 
         // char newName[12] = "tefeff.pcx";
         // Era::LoadImageAsPcx16("text.png", newName, 0, 0, 0, 0, Era::RESIZE_ALG_NO_RESIZE);
-        // buf = newName;
-        // store asset name inside dlg8item
-        item->spriteName.Set(buf);
-        item->picType = DWORD(buf);
+        //  buf = newName;
+        //  store asset name inside dlg8item
+        dlg8Item->spriteName.Set(buf);
+        dlg8Item->picType = DWORD(buf);
 
-        // if not pcx allow return to default proc
-        if (!IsPcxResourceName(buf))
+        if (info.createDlgPcx)
         {
-            c->return_address = 0x4F6229;
-            return NO_EXEC_DEFAULT;
+            // assume we have address of pcx file in picSubtype, if it is > 0x10000
+            if (picSubtype > 0x10000)
+            {
+                const std::string pathToExternalFile = GetStringFromInt(picSubtype, TRUE);
+                Era::LoadImageAsPcx16(pathToExternalFile.c_str(), buf, 0, 0, 0, 0, Era::RESIZE_ALG_NO_RESIZE);
+                info.isPcx16 = TRUE;
+            }
+
+            _Pcx_ *pcx = o_LoadPcx8(buf);
+            dlg8Item->spriteWidth = pcx->width + 2;
+            dlg8Item->spriteHeight = pcx->height + 2;
+            // deref or destruct pcx to avoid memory leak
+            pcx->DerefOrDestruct();
+            // jump over def-deref
+            c->return_address = 0x04F6255;
+            dlg8Item->picSubType = 0;
         }
-
-        // sest flag to create DlgStaticPcx8 instead of DlgStaticDef
-        dlg8ItemInfoCurrent->createDlgPcx = TRUE;
-
-        _Pcx_ *pcx = o_LoadPcx8(buf);
-        dlg8ItemInfoCurrent->isPcx16 = 1; // picSubtype > 0; // pcx->v_table == (_ptr_*)0x063B9C8;
-
-        auto dlg8Item = reinterpret_cast<_Dlg8Item_ *>(c->ebx);
-        dlg8Item->spriteWidth = pcx->width + 2;
-        dlg8Item->spriteHeight = pcx->height + 2;
-
-        pcx->DerefOrDestruct();
-        // jump over def-deref
-        c->return_address = 0x04F6255;
-        return NO_EXEC_DEFAULT;
+        else
+        {
+            if (info.defFrame == -1)
+                dlg8Item->picSubType = 0;
+            c->return_address = 0x4F6229;
+        }
     }
-    return EXEC_DEFAULT;
+    else
+    {
+        dlg8Item->picType = -1;
+        dlg8Item->picSubType = 0;
+        c->return_address = 0x04F6388;
+    }
+
+    return NO_EXEC_DEFAULT;
 }
 
 // if dlg8ItemInfo->createDlgPcx is TRUE, then create a new DlgStaticPcx8 or DlgStaticPcx16
