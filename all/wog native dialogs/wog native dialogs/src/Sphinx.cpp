@@ -685,17 +685,30 @@ int __stdcall Y_WoGDlg_SphinxReq(HiHook* hook, int Num)
         return CALL_2(int, __cdecl, 0x772DFD, WOG_Answer, correctAnswer);
     }
 }
-
+DllExport BOOL __stdcall PrepareMessageBoxText(char** descriptions, char** rmcHints, size_t length);
 
 // диалог посещения камней силы (повышение перв.навыков командира)
-int __cdecl Y_Dlg_QuickDialog(HiHook* hook, _Sphinx1_* Sphinx)
+int __cdecl Y_Dlg_QuickDialog(HiHook *hook, _Sphinx1_ *Sphinx)
 {
     Y_Mouse_SetCursor(0);
-    int ret = New_Dlg_CustomReq(Sphinx, MyString2);
+
+    char *hint = Sphinx->Pic1Hint;
+    int type = 1;
+
+    if (Sphinx->ShowCancel)
+    {
+        hint = Sphinx->Text3;
+        type = 2;
+    }
+    PrepareMessageBoxText(&hint, &Sphinx->Pic1Hint, 1);
+
+    // new msg box lol
+    int ret = b_MsgBoxD(Sphinx->Text1, type, int(npc2Def), int(Sphinx->Pic1Path));
+    // int ret = New_Dlg_CustomReq(Sphinx, MyString2);
     Y_Mouse_SetCursor(1);
 
     // -1: Esc, 1: Ok
-    return ret;
+    return ret ? 1 : -1;
 }
 
 // диалог IF:B/P

@@ -7,7 +7,7 @@
 #include <vector>
 
 #pragma comment(linker, "/EXPORT:PrepareDlgPictures=_PrepareDlgPictures@12")
-#pragma comment(linker, "/EXPORT:PrepareDlgText=_PrepareDlgText@12")
+#pragma comment(linker, "/EXPORT:PrepareMessageBoxText=_PrepareMessageBoxText@12")
 #pragma comment(linker, "/EXPORT:ShowPreparedDlg=_ShowPreparedDlg@24")
 
 // по большей части тупо переписан оригинальный код функции 0x4F1650,
@@ -143,9 +143,11 @@ struct AdventureInfoDefPanelData
 {
     _HStr_ text;
     Dlg8ItemInfo dlg8ItemInfos[2];
+    _HStr_ storedText[2];
     int itemCount;
     int timeToShow;
     RECT position;
+    _ptr_ createdPanel = 0;
 
 } adventureInfoDefPanel;
 
@@ -330,7 +332,7 @@ DllExport BOOL __stdcall PrepareDlgPictures(char **assetNames, int *frameIds, si
     return infoCounter;
 }
 
-DllExport BOOL __stdcall PrepareDlgText(char **descriptions, char **rmcHints, size_t length)
+DllExport BOOL __stdcall PrepareMessageBoxText(char **descriptions, char **rmcHints, size_t length)
 {
     auto &dlg8Info = dlg8Manager.dlg8InfoBuffer;
     dlg8Manager.ClearTextBuffer();
@@ -359,7 +361,7 @@ DllExport BOOL __stdcall ShowPreparedDlg(char *text, int type, int x, int y, int
     auto &dlg8ItemInfos = dlg8Manager.dlg8InfoBuffer.dlg8ItemInfos;
     int count = 0;
 
-    type = Clamp(1, type, EBottomViewType::CUSTOM_MSG_BOX);
+    type = Clamp(1, type, 10);
 
     for (size_t i = 0; i < Dlg8ItemInfo::MAX_SIZE; i++)
     {
@@ -562,10 +564,18 @@ void __stdcall Y_New_MsgBox_Call(HiHook *h, const char *Mes, int MType, int PosX
         _AdvMgrSave_ *mgr = reinterpret_cast<_AdvMgrSave_ *>(o_AdvMgr);
         mgr->infoPanelToCreate.type = EBottomViewType::CUSTOM_MSG_BOX;
         mgr->infoPanelToCreate.endTime = o_GetTime() + timeToShow;
-        if (Par == 1 || SType3 == 1)
+
+        // don't draw panel in other dlgs
+        if (o_WndMgr->dlg_last == mgr->dlg)
         {
-            mgr->RedrawInfoPanel(1);
+            const BOOL rebuildPanel = SType3 == 1;
+
+            if (rebuildPanel)
+                mgr->UpdateInfoPanel(1, 1, 1);
+            else
+                mgr->RedrawInfoPanel(1);
         }
+        mgr->infoPanelToCreate.type = EBottomViewType::CUSTOM_MSG_BOX;
 
         return;
     }
@@ -1080,24 +1090,38 @@ _LHF_(H3Dlg8_RightAfterClose)
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static void FitItemIntoRect(_Dlg8Item_ &dlg8Item, const RECT &rect)
+{
+    const int rectWidth = rect.right - rect.left;
+    const int rectHeight = rect.bottom - rect.top;
 
+    if (rectWidth <= 0 || rectHeight <= 0 || dlg8Item.spriteWidth <= 0 || dlg8Item.spriteHeight <= 0)
+        return;
+
+    dlg8Item.spritePos.x = rect.left + (rectWidth - dlg8Item.spriteWidth) / 2;
+    if (dlg8Item.spriteHeight < 70)
+    {
+        dlg8Item.spritePos.y = rect.top + (rectHeight - dlg8Item.spriteHeight) / 2;
+    }
+}
 static _ptr_ AdventureInfoPanel_Build(_ptr_ panel, _Dlg_ *parent, AdventureInfoDefPanelData &panelData)
 {
 
-    int itemsCount = panelData.itemCount;
+    const int itemsCount = panelData.itemCount;
     const bool hasText = !panelData.text.Empty();
     _Dlg8Item_ dlg8Items[2];
 
     CALL_1(_ptr_, __thiscall, 0x5AA650, panel); // panel ctor
 
-    *reinterpret_cast<_ptr_ *>(panel) = 0x63BB04;
+    *reinterpret_cast<_ptr_ *>(panel) = 0x63BB04; // set base vtable
     auto &rect = panelData.position;
+    panelData.createdPanel = panel;
 
     const int panelWidth = rect.right;
     const int panelHeight = rect.bottom;
 
     CALL_6(void, __thiscall, 0x5AA780, panel, rect.left, rect.top, panelWidth, panelHeight, parent);
-    *reinterpret_cast<_ptr_ *>(panel) = 0x63BB1C;
+    *reinterpret_cast<_ptr_ *>(panel) = 0x63BB1C; // set "resource pickup" vtable
 
     auto *background =
         b_DlgStaticPcx8_Create(0, 0, panelWidth, panelHeight, 2000, const_cast<char *>("AdStatOt.pcx"), 2048);
@@ -1120,15 +1144,21 @@ static _ptr_ AdventureInfoPanel_Build(_ptr_ panel, _Dlg_ *parent, AdventureInfoD
         textHeight = itemsCount ? Clamp(0, linesCount * font->height, maxTextHeight) : maxTextHeight;
         baseY += textHeight + itemsGap + 8;
     }
-
+    int highestPos = 0;
     if (itemsCount > 0)
     {
-        int availableForAssetsHeight = panelHeight - textHeight;
-        int availableForAssetsWidth = maxTextWidth;
-        int picAndTextHeight[2];
+        RECT itemsRecs[2];
 
-        int maxAssetHeight = 0;
-        int maxAssetTextHeight = 0;
+        if (itemsCount == 1)
+        {
+            itemsRecs[0] = {4, baseY, panelWidth - 8, panelHeight - 4};
+        }
+        else
+        {
+            itemsRecs[0] = {0, baseY, 92, panelHeight - 4};
+            itemsRecs[1] = {(panelWidth >> 1) + 2, baseY, panelWidth - 2, panelHeight - 4};
+        }
+
         dlg8Manager.ClearNextDlgPreparation();
         dlg8Manager.nextDlg8ItemsInfos = panelData.dlg8ItemInfos;
         for (int i = 0; i < itemsCount; ++i)
@@ -1138,64 +1168,17 @@ static _ptr_ AdventureInfoPanel_Build(_ptr_ panel, _Dlg_ *parent, AdventureInfoD
             if (!dlg8ItemInfo.assetIsValid && dlg8ItemInfo.itemInfo.defType > MAXIMUM_DEFAULT_PIC_TYPE)
                 continue;
             auto &dlg8Item = dlg8Items[i];
-            int baseX = i * (panelWidth >> 1) + itemsGap;
-            dlg8Item.spritePos = {0, baseY};
-            dlg8Item.textPos = {0, baseY};
+            dlg8Item.spritePos = {itemsRecs[i].left, itemsRecs[i].top};
+            //  dlg8Item.textPos = {itemsRecs[i].left, itemsRecs[i].top};
+            auto &textStored = dlg8Manager.dlg8InfoBuffer.dlg8ItemTextInfos[i].textBelow;
+            if (!textStored.Empty() && panelData.storedText[i].Empty())
+                panelData.storedText[i].Set(textStored.c_str);
 
             CALL_3(void, __thiscall, 0x4F5540, &dlg8Item, dlg8ItemInfo.itemInfo.defType,
                    dlg8ItemInfo.itemInfo.defFrame);
-            if (!dlg8Item.spriteName.Empty())
-            {
-                if (dlg8Item.spriteHeight > maxAssetHeight)
-                    maxAssetHeight = dlg8Item.spriteHeight;
-                if (dlg8Item.textHeight > maxAssetTextHeight)
-                    maxAssetTextHeight = dlg8Item.textHeight;
-            }
-            if (!dlg8Item.textBelow.Empty())
-            {
-                if (dlg8Item.textHeight > maxAssetTextHeight)
-                    maxAssetTextHeight = dlg8Item.textHeight;
-                if (dlg8Item.spriteHeight > 0)
-                {
-                    dlg8Item.textPos.y = dlg8Item.spritePos.y + dlg8Item.spriteHeight + 2;
-                }
-            }
-
-            picAndTextHeight[i] = dlg8Item.spriteHeight + dlg8Item.textHeight;
-        }
-        if (dlg8Items[0].spriteWidth > availableForAssetsWidth)
-        {
-            dlg8Items[0].spriteWidth = availableForAssetsWidth;
-            itemsCount = 1;
-        }
-        if (dlg8Items[0].textWidth > availableForAssetsWidth)
-        {
-            dlg8Items[0].textWidth = availableForAssetsWidth;
-        }
-
-        if (itemsCount == 1)
-        {
-
-            const int itemPosX = (panelWidth - dlg8Items[0].spriteWidth) >> 1;
-            dlg8Items[0].spritePos.x = itemPosX;
-            dlg8Items[0].textPos.x = itemPosX;
-
-            //  const int itemPosY = (availableForAssetsHeight - picAndTextHeight[0]) >> 1;
-            //  dlg8Items[0].spritePos.y += itemPosY;
-            //	dlg8Items[0].textPos.y = dlg8Items[0].spritePos.y + dlg8Items[0].spriteHeight + 2;
-        }
-        else
-        {
-            const int itemPosX = (panelWidth >> 1) - dlg8Items[0].spriteWidth; // -(itemsGap >> 1);
-            dlg8Items[0].spritePos.x = itemPosX;
-
-            const int spaceLeft = panelWidth - itemPosX - dlg8Items[0].spriteWidth;
-            if (dlg8Items[1].spriteWidth > spaceLeft)
-            {
-                dlg8Items[1].spriteWidth = spaceLeft;
-                dlg8Items[1].textWidth = spaceLeft;
-            }
-            dlg8Items[1].spritePos.x = panelWidth - dlg8Items[1].spriteWidth - itemPosX + 2;
+            FitItemIntoRect(dlg8Item, itemsRecs[i]);
+            if (dlg8Item.spriteHeight + dlg8Item.spritePos.y > highestPos)
+                highestPos = dlg8Item.spriteHeight + dlg8Item.spritePos.y;
         }
 
         dlg8Manager.ClearNextDlgPreparation();
@@ -1232,10 +1215,7 @@ static _ptr_ AdventureInfoPanel_Build(_ptr_ panel, _Dlg_ *parent, AdventureInfoD
         int itemHeight = dlg8Item.spriteHeight;
         int itemX = dlg8Item.spritePos.x;
         int itemY = dlg8Item.spritePos.y;
-        if (itemHeight > availableForAssetsHeight)
-        {
-            itemHeight = availableForAssetsHeight;
-        }
+
         switch (assetType)
         {
         case eAssetType::ASSET_TYPE_PCX:
@@ -1258,12 +1238,19 @@ static _ptr_ AdventureInfoPanel_Build(_ptr_ panel, _Dlg_ *parent, AdventureInfoD
         if (item)
             CALL_3(void, __thiscall, 0x5AA7B0, panel, item, -1);
 
-        itemId = 2105 + i;
-        if (dlg8Item.textHeight > 0)
+        if (dlg8Item.textHeight > 0 && dlg8Item.textBelow.c_str)
         {
-            item =
-                b_DlgStaticText_Create(itemX - 1, itemY + itemHeight - 2, dlg8Item.spriteWidth - 2, dlg8Item.textHeight,
-                                       dlg8Item.textBelow.c_str, o_Smalfont_Fnt->name, 1, itemId, 5, 0, 8);
+            itemId = 2105 + i;
+            int textX = itemX;
+            int textW = dlg8Item.spriteWidth;
+            if (dlg8Item.textWidth > dlg8Item.spriteWidth)
+            {
+                int diff = dlg8Item.textWidth - dlg8Item.spriteWidth;
+                textX = dlg8Item.spritePos.x - (diff >> 1);
+                textW = dlg8Item.textWidth;
+            }
+            item = b_DlgStaticText_Create(textX, highestPos - 2, textW, dlg8Item.textHeight, dlg8Item.textBelow.c_str,
+                                          o_Smalfont_Fnt->name, 1, itemId, 5, 0, 8);
             if (item)
                 CALL_3(void, __thiscall, 0x5AA7B0, panel, item, -1);
         }
@@ -1277,13 +1264,34 @@ static bool AdventureInfoPanel_Draw(_AdvMgrSave_ *advMgr, BOOL rebuildPanel)
     if (!rebuildPanel && advMgr->currentInfoPanelToDraw == EBottomViewType::CUSTOM_MSG_BOX)
         return FALSE;
 
+    auto &panelData = adventureInfoDefPanel;
+
+    const BOOL samePanelRebuild = advMgr->currentInfoPanelToDraw == EBottomViewType::CUSTOM_MSG_BOX;
+    for (size_t i = 0; i < 2; i++)
+    {
+        if (samePanelRebuild)
+        {
+            auto &textStored = dlg8Manager.dlg8InfoBuffer.dlg8ItemTextInfos[i].textBelow;
+
+            if (!panelData.storedText[i].Empty() && textStored.Empty())
+                textStored.Set(panelData.storedText[i].c_str);
+        }
+        else
+            panelData.storedText[i].Destruct(1);
+    }
+
     _Dlg_ *dlg = advMgr->dlg;                // *reinterpret_cast<_Dlg_**>(reinterpret_cast<char*>(advMgr) + 68);
     CALL_1(void, __thiscall, 0x403EE0, dlg); // H3AdventureMgrDlg::ClearInfoPanel
+
     advMgr->currentInfoPanelToDraw = EBottomViewType::CUSTOM_MSG_BOX;
 
     _ptr_ panel = o_New(0x34);
     if (panel)
-        AdventureInfoPanel_Build(panel, dlg, adventureInfoDefPanel);
+        AdventureInfoPanel_Build(panel, dlg, panelData);
+
+    panelData.createdPanel = panel;
+
+    // attach panel
     CALL_2(void, __thiscall, 0x402C10, dlg, panel);
     return TRUE;
 }
