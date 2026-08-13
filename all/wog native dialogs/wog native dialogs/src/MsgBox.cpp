@@ -2,6 +2,10 @@
 /////////////////////////////////////////////// Callback диалога MsgBox ///////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #pragma comment(linker, "/EXPORT:PrepareDlgPictures=_PrepareDlgPictures@12")
 #pragma comment(linker, "/EXPORT:PrepareDlgText=_PrepareDlgText@12")
 #pragma comment(linker, "/EXPORT:ShowPreparedDlg=_ShowPreparedDlg@24")
@@ -64,7 +68,7 @@ static eAssetType IsGameAssetType(const std::string &s, const eAssetType type)
     if (len < 5 || len > 12)
         return ASSET_TYPE_NO;
     const char *ext = s.c_str() + len - 4;
-    constexpr size_t validExtensionsCount = std::size(validExtensions);
+    constexpr size_t validExtensionsCount = sizeof(validExtensions) / sizeof(validExtensions[0]);
     for (size_t i = 0; i < validExtensionsCount; i++)
     {
         if (type & (1 << i))
