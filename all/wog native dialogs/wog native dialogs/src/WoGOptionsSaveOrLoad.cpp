@@ -731,61 +731,105 @@ int __stdcall NewDlg_ChooseFile(_ChooseFile_* cf)
 
     // создаём диалог
     _CustomDlg_* dlg = _CustomDlg_::Create(-1, -1, x, y, DF_SCREENSHOT | DF_SHADOW, NewDlg_ChooseFile_Proc);
-    Set_DlgBackground_RK(dlg, 1, o_GameMgr->GetMeID());
+    const bool presetSkin = WoGOptionSkin::CreatePresetBackground(dlg);
+    if (!presetSkin)
+        Set_DlgBackground_RK(dlg, 1, o_GameMgr->GetMeID());
 
     // сохраняем указатель на диалог
     ptr_NewDlg_ChooseFile = dlg;
 
     // подсказка в статус баре ( DIID_HINTITEM == 115 )
-    dlg->AddItem(_DlgStaticTextPcx8ed_::Create(8, y-26, x-16, 18, o_NullString, n_SmallFont, adRollvrPcx, 1, DIID_HINTITEM, ALIGN_H_CENTER | ALIGN_V_CENTER) );
+    const int hintX = presetSkin ? 48 : 8;
+    const int hintWidth = presetSkin ? 416 : x - 16;
+    dlg->AddItem(_DlgStaticTextPcx8ed_::Create(hintX, y-26, hintWidth, 18,
+        o_NullString, n_SmallFont,
+        presetSkin ? (char*)WoGOptionSkin::PRESET_HINT_PCX : adRollvrPcx,
+        1, DIID_HINTITEM, ALIGN_H_CENTER | ALIGN_V_CENTER) );
 
     // кнопка CANCEL
     if ( cf->ShowCancel )
     {
-        dlg->AddItem(_DlgStaticPcx8_::Create(x_center +16, y-74, DIID_CANCEL_FRAME, box64x30Pcx));
-        dlg->AddItem(_DlgButton_::Create(x_center +17, y-73, 64, 30, DIID_CANCEL, iCancelDef, 0, 1, 1, 1, 2));
+        if (!presetSkin)
+            dlg->AddItem(_DlgStaticPcx8_::Create(x_center +16, y-74, DIID_CANCEL_FRAME, box64x30Pcx));
+        dlg->AddItem(_DlgButton_::Create(x_center +17, y-73, 64, 30,
+            DIID_CANCEL,
+            presetSkin ? (char*)WoGOptionSkin::BUTTON_DEF : iCancelDef,
+            presetSkin ? 3 : 0, presetSkin ? 4 : 1, 1, 1,
+            presetSkin ? 5 : 2));
         dlg->GetItem(DIID_CANCEL)->full_tip_text = o_NullString;
         dlg->GetItem(DIID_CANCEL)->short_tip_text = txtresWOG->GetString(12);
         x_center -= 47; // для правильного смещения кнопки ОК
     }
     // кнопка ОК
-    dlg->AddItem(_DlgStaticPcx8_::Create(x_center -33, y-74, DIID_OK_FRAME, box64x30Pcx));
-    dlg->AddItem(_DlgButton_::Create(x_center -32, y-73, 64, 30, DIID_OK, iOkayDef, 0, 1, 0, 28, 2));
+    if (!presetSkin)
+        dlg->AddItem(_DlgStaticPcx8_::Create(x_center -33, y-74, DIID_OK_FRAME, box64x30Pcx));
+    dlg->AddItem(_DlgButton_::Create(x_center -32, y-73, 64, 30,
+        DIID_OK, presetSkin ? (char*)WoGOptionSkin::BUTTON_DEF : iOkayDef,
+        0, 1, 0, 28, 2));
     dlg->GetItem(DIID_OK)->full_tip_text = o_NullString;
     dlg->GetItem(DIID_OK)->short_tip_text = txtresWOG->GetString(11);
 
     // Титульный текст
-    dlg->AddItem(_DlgStaticText_::Create(dx, 20, x-dxx, 26, cf->Caption, n_MedFont, 7, 3, ALIGN_H_CENTER | ALIGN_V_CENTER, 0));
+    dlg->AddItem(_DlgStaticText_::Create(dx, 20, x-dxx, 26, cf->Caption,
+        n_MedFont, presetSkin ? WoGOptionColors::GOLD_TEXT : 7, 3,
+        ALIGN_H_CENTER | ALIGN_V_CENTER, 0));
 
     // желтая обводка пояснения
-    b_YellowFrame_Create(dlg, dx+1, 51, x-dxx, 66, 94, ON, o_Pal_Black);
-    b_YellowFrame_Create(dlg, dx, 50, x-dxx, 66, 95, ON, o_Pal_Grey);
+    if (!presetSkin)
+    {
+        b_YellowFrame_Create(dlg, dx+1, 51, x-dxx, 66, 94, ON, o_Pal_Black);
+        b_YellowFrame_Create(dlg, dx, 50, x-dxx, 66, 95, ON, o_Pal_Grey);
+    }
     // Текст пояснения
-    dlg->AddItem(_DlgStaticText_::Create(dx+4, 50, x-dxx-8, 66, cf->Description, n_SmallFont, 1, 4, ALIGN_H_CENTER | ALIGN_V_CENTER, 0));
+    dlg->AddItem(_DlgStaticText_::Create(dx+4, 50, x-dxx-8, 66,
+        cf->Description, n_SmallFont,
+        presetSkin ? WoGOptionColors::REGULAR : 1, 4,
+        ALIGN_H_CENTER | ALIGN_V_CENTER, 0));
 
     // Текст: текущий адрес
-    dlg->AddItem(_DlgStaticText_::Create(dx+8, 116, x-dxx-16, 24, o_NullString, n_SmallFont, 7, 5, ALIGN_H_LEFT | ALIGN_V_CENTER, 0));
+    dlg->AddItem(_DlgStaticText_::Create(dx+8, 116, x-dxx-16, 24,
+        o_NullString, n_SmallFont,
+        presetSkin ? WoGOptionColors::REGULAR : 7, 5,
+        ALIGN_H_LEFT | ALIGN_V_CENTER, 0));
 
     // Текст выбранный файл
-    dlg->AddItem(_DlgStaticText_::Create(dx, y-130, x-dxx, 30, txtresWOG->GetString(97), n_MedFont, 7, 6, ALIGN_H_CENTER | ALIGN_V_CENTER, 0));
+    dlg->AddItem(_DlgStaticText_::Create(dx, y-130, x-dxx, 30,
+        txtresWOG->GetString(97), n_MedFont,
+        presetSkin ? WoGOptionColors::GOLD_TEXT : 7, 6,
+        ALIGN_H_CENTER | ALIGN_V_CENTER, 0));
 
     // обводка поля ввода
-    b_YellowFrame_Create(dlg, dx+1, y-101, x-dxx, 19, 98, ON, o_Pal_Black); // id = 98
-    b_YellowFrame_Create(dlg, dx, y-102, x-dxx, 19, 99, ON, o_Pal_Grey); // id = 99
+    if (!presetSkin)
+    {
+        b_YellowFrame_Create(dlg, dx+1, y-101, x-dxx, 19, 98, ON, o_Pal_Black); // id = 98
+        b_YellowFrame_Create(dlg, dx, y-102, x-dxx, 19, 99, ON, o_Pal_Grey); // id = 99
+    }
 
     // поле ввода, если разрешено вводить
     if (cf->FileEditEnabled)
-        dlg->AddItem(_DlgTextEdit_::Create(dx+2, y-100, x-dxx-4, 16, 64, cf->fileName, n_SmallFont, 1, ALIGN_H_LEFT | ALIGN_V_CENTER, "WoGTextEdit.pcx", 256, 4, 0, 0));
+        dlg->AddItem(_DlgTextEdit_::Create(dx+2, y-100, x-dxx-4, 16, 64,
+            cf->fileName, n_SmallFont, 1, ALIGN_H_LEFT | ALIGN_V_CENTER,
+            presetSkin ? (char*)WoGOptionSkin::PRESET_EDIT_PCX : "WoGTextEdit.pcx",
+            256, 4, 0, 0));
     else  // если нельзя, то простой нередактируемый текст
-        dlg->AddItem(_DlgStaticTextPcx8ed_::Create(dx+2, y-100, x-dxx-4, 16, cf->fileName, n_SmallFont, "WoGTextEdit.pcx", 1, 256, 0));
+        dlg->AddItem(_DlgStaticTextPcx8ed_::Create(dx+2, y-100, x-dxx-4, 16,
+            cf->fileName, n_SmallFont,
+            presetSkin ? (char*)WoGOptionSkin::PRESET_EDIT_PCX : "WoGTextEdit.pcx",
+            1, 256, 0));
 
     // начальные координаты элементов прокрутки: картинка папки, текст, желтая рамка (по 13 шт.)
     int startY = 144;
     int dy = 19;
 
     // рамка со списком файлов и папок
-    b_YellowFrame_Create(dlg, dx+1, startY-3, x-dxx, y-266, 96, ON, o_Pal_Black); // id = 96
-    b_YellowFrame_Create(dlg, dx, startY-4, x-dxx, y-266, 97, ON, o_Pal_Grey);    // id = 97
+    if (presetSkin)
+        dlg->AddItem(_DlgStaticPcx8_::Create(dx, startY-4, x-dxx, y-266,
+            97, (char*)WoGOptionSkin::PRESET_LIST_PCX));
+    else
+    {
+        b_YellowFrame_Create(dlg, dx+1, startY-3, x-dxx, y-266, 96, ON, o_Pal_Black); // id = 96
+        b_YellowFrame_Create(dlg, dx, startY-4, x-dxx, y-266, 97, ON, o_Pal_Grey);    // id = 97
+    }
 
     _DlgItem_* tempItem;
     //  создаём элементы списка (пока что пустышки)
@@ -809,6 +853,8 @@ int __stdcall NewDlg_ChooseFile(_ChooseFile_* cf)
 
     // создаём пустой скролл (id 9)
     _DlgScroll_* scroll = _DlgScroll_::Create( x-42, 142, 16, y-270, 9, 0, (_ptr_)NewDlg_ChooseFile_ScrollProc, 0, 0, 0);
+    if (presetSkin)
+        WoGOptionSkin::ApplyPresetScrollbarSkin(scroll);
     dlg->AddItem(scroll);
 
     // перестроение/наполнение диалога
@@ -893,12 +939,29 @@ int NewDlg_ChooseFile_Prepare(_ChooseFile_* cf)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
+int FinishWoGPresetFileSelection(int result, _ChooseFile_* cf)
+{
+    if (!result && wogPresetOperation == WOG_PRESET_SAVE && wogPresetHooksAvailable)
+    {
+        if (!PrepareWoGOptionPresetSave(cf ? cf->Buf : NULL))
+        {
+            result = 1;
+        }
+    }
+
+    if (result)
+        ClearPreparedWoGOptionPresetSave();
+    wogPresetOperation = WOG_PRESET_NONE;
+    return result;
+}
+
 int __cdecl Dlg_WoG_Options_SaveOrLoad(HiHook* hook, _ChooseFile_* cf, char* defaultName)
 {
     // 1) если окно ввода должно быть отключено (например для ввода китайских символов)
     // 2) на всякий случай делаем работоспособным вызов старой версии диалога
     if ( BanDlg_CustomReq_EnterText || GetKeyState(VK_CTRL) < 0 )
-        return CALL_2(int, __cdecl, hook->GetDefaultFunc(), cf, defaultName);
+        return FinishWoGPresetFileSelection(
+            CALL_2(int, __cdecl, hook->GetDefaultFunc(), cf, defaultName), cf);
 
     // путь файла wog.ini
     char iniPath[BUFFER_SIZE];
@@ -924,7 +987,7 @@ int __cdecl Dlg_WoG_Options_SaveOrLoad(HiHook* hook, _ChooseFile_* cf, char* def
 
     // результат: 0 - выбран файл, 1 - нажата отмена
     // cf->buf: если 0, то полный путь к файлу, если 1 - то буффер пустой
-    return NewDlg_ChooseFile_Prepare(cf);
+    return FinishWoGPresetFileSelection(NewDlg_ChooseFile_Prepare(cf), cf);
 }
 
 /////////////////////////////////////////////////////////////////////////

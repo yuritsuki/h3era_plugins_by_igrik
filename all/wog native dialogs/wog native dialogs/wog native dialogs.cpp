@@ -100,6 +100,7 @@ char* textProcS = "%s";
 #include "src\IFG.cpp"
 #include "src\ChooseAttack.cpp"
 #include "src\ScenarioScroll.cpp"
+#include "src\WoGExternalOptions.cpp"
 #include "src\WoGOptions.cpp"
 #include "src\WoGOptionsStrings.cpp"
 #include "src\CastleReBuild.cpp"
@@ -232,6 +233,16 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 
             // подтягиваем ERA
             Era::ConnectEra(hModule, wndText::PLUGIN_NAME);
+            WoGExternalOptions::Publish(_P);
+            // External locks must apply even when the player never opens the
+            // WoG Options dialog. Providers may register from their DllMain,
+            // but their callbacks are invoked only after plugin loading.
+            Era::RegisterHandler(WoGExternalOptions::OnDeferredLockRefresh,
+                "OnAfterWoG");
+            Era::RegisterHandler(WoGExternalOptions::OnDeferredLockRefresh,
+                "OnAfterCreateWindow");
+            Era::RegisterHandler(WoGExternalOptions::OnDeferredLockRefresh,
+                "OnAfterReloadLanguageData");
             // и сразу получаем версию ERA
             ERA_VERSION = Era::GetVersionNum();
             Era::RegisterHandler(OnReportVersion, "OnReportVersion");
@@ -247,7 +258,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             _PI->WriteLoHook(0x4EEAC0, Y_Hook_MainLoop);
 
             // делаем показ версии игры в главном меню
-            // _PI->WriteHiHook(0x4FB930, SPLICE_, EXTENDED_, THISCALL_, Y_Dlg_MainMenu_Create);            
+            // _PI->WriteHiHook(0x4FB930, SPLICE_, EXTENDED_, THISCALL_, Y_Dlg_MainMenu_Create);
             // делаем более плавное отображение credits
             _PI->WriteLoHook(0x4EE674, Y_DlgCreditsSmoothly);
             _PI->WriteByte(0x4EE6C0 +2, 1); // начало: до достижения копирайтов до верха
