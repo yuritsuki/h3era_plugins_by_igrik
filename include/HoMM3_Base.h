@@ -113,8 +113,9 @@ NOALIGN struct _HStr_ : public _Struct_
   inline _int_  SetLength(int length)  { return CALL_2(_int_, __thiscall, 0x404A20, this, length+1); }
 
 
-  inline _HStr_*  Set(char* str, int len)   { return CALL_3(_HStr_*, __thiscall, 0x404180, this, str, len); }
-  inline _HStr_*  Set(char* str)        { return Set(str, strlen(str)); }
+  inline _HStr_*  Set(const char* str, int len)   { return CALL_3(_HStr_*, __thiscall, 0x404180, this, str, len); }
+  inline _HStr_*  Set(const char* str)        { return Set(str, strlen(str)); }
+  inline _bool32_ Empty() const { return c_str == nullptr|| length == 0; }
   _HStr_()
   {
     _byte_ v = 1;
@@ -200,22 +201,23 @@ public:
   // DestAddr - адрес места, начиная с которого будут идти новые элементы, старые начиная с этого места будут сдвинуты.
   // Count - количество добавляемых элементов.
   // SourceAddr - адрес, начиная с которого будут браться новые элементы.
-  inline void InsertRange(_type_* DestAddr, _int_ Count, _type_* SourceAddr)
+  inline void InsertRange(_type_ *DestAddr, _int_ Count, _type_ *SourceAddr)
   {
-    // Для каждого размера типа - своя функция.
-     switch (sizeof(_type_))
-    {
+      // Для каждого размера типа - своя функция.
+      switch (sizeof(_type_))
+      {
       case 4:
-        CALL_4(void, __thiscall, 0x4230D0, this, DestAddr, Count, SourceAddr);
-        break;
-        
+          CALL_4(void, __thiscall, 0x4230D0, this, DestAddr, Count, SourceAddr);
+          break;
+      case 8:
+          CALL_4(void, __thiscall, 0x41B440, this, DestAddr, Count, SourceAddr);
+          break;
       // Если размер не подходит ни под одну функцию, генерируем ошибку.
       default:
-        ShowVA(LIST_SIZE_ERROR_MESSAGE, "InsertRange", sizeof(_type_));
-        throw LIST_SIZE_ERROR_SHORT_MESSAGE;
-    }
+          ShowVA(LIST_SIZE_ERROR_MESSAGE, "InsertRange", sizeof(_type_));
+          throw LIST_SIZE_ERROR_SHORT_MESSAGE;
+      }
   }
-  
 
   // Добавление элементов в список со сдвигом.
   // Работает для типов размером в 64.

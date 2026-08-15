@@ -333,4 +333,15 @@ void Dlg_ChangeBmp(PatcherInstance* _PI)
     _PI->WriteDword(0x7A394C, 0); // "NONE"
     _PI->WriteDword(0x7A3958, 100); // _MP_SP_0.BMP"
     _PI->WriteDword(0x7A395C, 101); // _MP_SP_1.BMP"    
+
+    // @ daemon_n
+    // диалог посещения камня могущества командирами
+    _PI->WriteDword(0x770990 + 6, 25); // ".\\Data\\ZVS\\LIB1.RES\\_MP0.BMP"
+    _PI->WriteDword(0x7709C7 + 6, 1);  // ".\\Data\\ZVS\\LIB1.RES\\_AT0.BMP"
+    _PI->WriteDword(0x7709FB + 6, 7);  // ".\\Data\\ZVS\\LIB1.RES\\_DF0.BMP"
+    _PI->WriteDword(0x770A2F + 6, 67); // ".\\Data\\ZVS\\LIB1.RES\\_SP0.BMP"
+    _PI->WriteDword(0x705C02 + 6, 25); // ".\\Data\\ZVS\\LIB1.RES\\_MP0.BMP"
+    _PI->WriteDword(0x705C0E + 6, 1);  // ".\\Data\\ZVS\\LIB1.RES\\_AT0.BMP"
+    _PI->WriteDword(0x705C1A + 6, 7);  // ".\\Data\\ZVS\\LIB1.RES\\_DF0.BMP"
+    _PI->WriteDword(0x705C26 + 6, 67); // ".\\Data\\ZVS\\LIB1.RES\\_SP0.BMP"
 }

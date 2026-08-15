@@ -428,6 +428,22 @@ NOALIGN struct _Dlg_ : public _Struct_
  CALL_11(_DlgScroll_*, __thiscall, 0x5963C0, o_New(sizeof(_DlgScroll_)),x, y, width, height, id, ticks_count, callback, is_blue, a10, a11)
 
 ////////////////////////////////////////////////////////////////////////////
+
+NOALIGN struct _Dlg8Item_
+{
+    int picType;          // +0
+    int picSubType;       // +4
+    _HStr_ spriteName;    // +8
+    _HStr_ textBelow;     // +24
+    int spriteFrameIndex; // +40
+    POINT spritePos;      // +48
+    int spriteHeight;     // +52
+    int spriteWidth;      // +56
+    POINT textPos;        // +64
+    int textHeight;       // +68
+    int textWidth;        // +72
+};
+
 NOALIGN struct _DlgItem_
 {
  _ptr_*  v_table;       // +0

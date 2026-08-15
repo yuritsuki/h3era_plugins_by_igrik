@@ -1046,6 +1046,7 @@ enum eSpell : INT8
 #define HK_MINUS_1      12
 #define HK_PLUS_1       13
 #define HK_BACKSPACE    14
+#define HK_TAB          15
 #define HK_CTRL         29
 #define HK_LSHIFT       42
 #define HK_RSHIFT       54

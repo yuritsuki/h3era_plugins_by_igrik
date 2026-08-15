@@ -92,7 +92,7 @@ int __stdcall BattleLog_Proc(HiHook *hook, _BattleMgr_ *bm, _EventMsg_ *msg)
 {
     if (!bm->isTactics)
     {
-        if (msg->type == MT_MOUSEBUTTON && msg->subtype == MST_LBUTTONCLICK && msg->item_id == 2005 ||
+        if (msg->type == MT_MOUSEBUTTON && msg->subtype == MST_LBUTTONDOWN && msg->item_id == 2005 ||
             msg->type == MT_KEYDOWN && msg->subtype == HK_H)
         {
             CreateNewBattleLogDlg(bm);
@@ -196,7 +196,7 @@ _LHF_(MineDlg_Ctor)
 void DlgBattleLog(PatcherInstance *_PI)
 {
     // диалог статуса действий и событий в битве
-    _PI->WriteHiHook(0x473A00, SPLICE_, EXTENDED_, THISCALL_, BattleLog_Proc);
+    _PI->WriteHiHook(0x473A00, SPLICE_, SAFE_, THISCALL_, BattleLog_Proc);
 
     // отображение номера раунда в битве и Перенос отображения сообщения об уменьшении вражеской армии командиром
     // Сопряжения (Астральный Дух) в лог битвы
