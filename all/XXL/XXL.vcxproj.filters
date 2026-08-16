@@ -29,7 +29,7 @@
     <ClCompile Include="pch.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="..\headers\Era\era.cpp">
+    <ClCompile Include="..\..\include\H3API_JS\Era\era.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="MapSize.cpp">

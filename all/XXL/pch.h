@@ -9,7 +9,7 @@
 #define _H3API_PATCHER_X86_
 
 // Добавьте сюда заголовочные файлы для предварительной компиляции
-#include "../headers/header_JS.h" 
+#include "../../include/H3API_JS/header_JS.h"
 // #include "..\..\daemon_n\H3EraPlugins\headers\header.h"
 
 

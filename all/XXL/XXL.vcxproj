@@ -151,7 +151,7 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\headers\Era\era.cpp" />
+    <ClCompile Include="..\..\include\H3API_JS\Era\era.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="MapSize.cpp" />
     <ClCompile Include="XXLRuntimeFix.cpp" />
