@@ -737,12 +737,20 @@ int __stdcall Dlg_LoadDatFile1(LoHook* h, HookContext* c)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
+int __cdecl WOG_ParseOptionStr(HiHook *h, signed int a1, unsigned int a2, unsigned int a3, int ItemCount, int a5,
+                               int a6, int a7, char *a8, char *a9, char *a10)
+{
 
+    return CALL_10(int, __cdecl, h->GetDefaultFunc(), a1, a2, a3, ItemCount, a5, a6, a7, Era::trStatic(a8),
+                   Era::trStatic(a9), Era::trStatic(a10));
+}
 
 void WoGOptionsStrings(PatcherInstance* _PI)
 {
     if ( ERA_VERSION >= 3000 ) { // только ERA III
         _PI->WriteHiHook(0x778A9D, SPLICE_, EXTENDED_, CDECL_, WOG_ProcessAll);
+        // добавляем чтение json текста для wog options строк
+        _PI->WriteHiHook(0x777E0C, SPLICE_, EXTENDED_, CDECL_, WOG_ParseOptionStr);
 
         // Keep locked values synchronized through setup initialization,
         // preset load/default actions, dialog entry, and dialog exit.
