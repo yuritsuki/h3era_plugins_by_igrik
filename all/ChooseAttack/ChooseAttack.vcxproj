@@ -75,7 +75,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IntDir>$(Configuration)\</IntDir>
-    <OutDir>D:\games\HoMM 3 ERA\Mods\Game Enhancement Mod\eraplugins\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>true</LinkIncremental>
