@@ -68,7 +68,7 @@
     <Link>
       <OutputFile>$(OutDir)$(ProjectName) extended.dll</OutputFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <GenerateMapFile>true</GenerateMapFile>
+      <GenerateMapFile>false</GenerateMapFile>
       <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
@@ -93,6 +93,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX86</TargetMachine>
+      <MapFileName>D:\SW\ExeMapCompiler\$(ProjectName) extended.map</MapFileName>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
