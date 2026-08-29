@@ -849,6 +849,83 @@ void __stdcall H3Hero_PutOnMap(HiHook *h, _Hero_ *targetHero, const int playerId
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+namespace
+{
+constexpr int SPELL_COUNT = 81;
+constexpr int SPELL_RECORD_SIZE = 0x88;
+
+bool applyingSEMagicResistance = false;
+bool injectingSEMagicResistance = false;
+bool skipWoGSEMagicResistance = false;
+
+int GetSpellTargetType(int spell)
+{
+    return o_Spells ? o_Spells[spell].type : 1;
+}
+} // namespace
+
+int __cdecl CrExpBon_DwarfResist_WoG_0071CC3B(HiHook *hook, int stack, signed int resistance, int spell)
+{
+    if (skipWoGSEMagicResistance && !injectingSEMagicResistance)
+    {
+        applyingSEMagicResistance = false;
+        skipWoGSEMagicResistance = false;
+        return resistance;
+    }
+
+    return CALL_3(int, __cdecl, hook->GetDefaultFunc(), stack, resistance, spell);
+}
+
+_LHF_(SEMagicResistance_Begin_0075DB2C)
+{
+    const int spell = *reinterpret_cast<int *>(0x0286021C);
+    const bool isHostileSpell = spell >= 0 && spell < SPELL_COUNT && GetSpellTargetType(spell) <= 0;
+
+    applyingSEMagicResistance = isHostileSpell;
+    injectingSEMagicResistance = false;
+    skipWoGSEMagicResistance = isHostileSpell;
+
+    return EXEC_DEFAULT;
+}
+
+_LHF_(SEMagicResistance_Apply_0044A4C7)
+{
+    if (!applyingSEMagicResistance)
+        return EXEC_DEFAULT;
+
+    const int stack = *reinterpret_cast<int *>(0x02846884);
+    const int spell = *reinterpret_cast<int *>(0x0286021C);
+
+    if (!stack || spell < 0 || spell >= SPELL_COUNT)
+    {
+        applyingSEMagicResistance = false;
+        skipWoGSEMagicResistance = false;
+        return EXEC_DEFAULT;
+    }
+
+    float &spellChance = *reinterpret_cast<float *>(c->ebp + 0x0C);
+    const int spellChancePercent = static_cast<int>(spellChance * 100.0f + 0.5f);
+    const int baseResistance = 100 - spellChancePercent;
+
+    injectingSEMagicResistance = true;
+    const int combinedResistance = CALL_3(int, __cdecl, 0x0071CC3B, stack, baseResistance, spell);
+    injectingSEMagicResistance = false;
+
+    spellChance = 1.0f - static_cast<float>(combinedResistance) / 100.0f;
+
+    return EXEC_DEFAULT;
+}
+
+_LHF_(SEMagicResistance_Finish_0075DB53)
+{
+    applyingSEMagicResistance = false;
+    injectingSEMagicResistance = false;
+    skipWoGSEMagicResistance = false;
+
+    return EXEC_DEFAULT;
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void CrExpoFixes(PatcherInstance *_PI)
 {
@@ -975,5 +1052,17 @@ void CrExpoFixes(PatcherInstance *_PI)
 
     _PI->WriteHexPatch(0x0719A55, dstExpPatch); // patch experience
     _PI->WriteCodePatch(0x0719A6B, "%n", 28);   // nop extra code
+
+    PatcherInstance *instance = _P->GetInstance("WogSEResistanceFix.era");
+    if (instance)
+        return;
+    instance = _P->CreateInstance("WogSEResistanceFix.era");
+    if (instance)
+    {
+        instance->WriteHiHook(0x0071CC3B, SPLICE_, EXTENDED_, CDECL_, CrExpBon_DwarfResist_WoG_0071CC3B);
+        instance->WriteLoHook(0x0075DB2C, SEMagicResistance_Begin_0075DB2C);
+        instance->WriteLoHook(0x0044A4C7, SEMagicResistance_Apply_0044A4C7);
+        instance->WriteLoHook(0x0075DB53, SEMagicResistance_Finish_0075DB53);
+    }
 }
 } // namespace CrExpo

@@ -34,10 +34,10 @@ namespace WoGOptionSkin
     const char* const BASE_PCX = "WOGOBASE.PCX";
     const char* const DARK_PCX = "WOGODARK.PCX";
     const char* const SELECT_PCX = "WOGOSEL.PCX";
-    const char* const HEADER_PCX = "WOGOHDR.PCX";
+   // const char* const HEADER_PCX = "WOGOHDR.PCX";
     const char* const STATUS_PCX = "WOGOSTAT.PCX";
-    const char* const BOTTOM_CORNER_LEFT_PCX = "WOGOBCL.PCX";
-    const char* const BOTTOM_CORNER_RIGHT_PCX = "WOGOBCR.PCX";
+    //const char* const BOTTOM_CORNER_LEFT_PCX = "WOGOBCL.PCX";
+    //const char* const BOTTOM_CORNER_RIGHT_PCX = "WOGOBCR.PCX";
     const char* const CORNER_TL_PCX = "WOGOTL.PCX";
     const char* const CORNER_TR_PCX = "WOGOTR.PCX";
     const char* const CORNER_BL_PCX = "WOGOBL.PCX";
@@ -46,7 +46,7 @@ namespace WoGOptionSkin
     const char* const POPUP_BOTTOM_PCX = "WOGOPB.PCX";
     const char* const POPUP_LEFT_PCX = "WOGOPL.PCX";
     const char* const POPUP_RIGHT_PCX = "WOGOPR.PCX";
-    const char* const POPUP_TOP_CLASP_PCX = "WOGOCTA.PCX";
+    //const char* const POPUP_TOP_CLASP_PCX = "WOGOCTA.PCX";
     const char* const BUTTON_DEF = "WOGOBTN.DEF";
     const char* const OPTION_CHECKBOX_DEF = "WOGOCHK.DEF";
     const char* const OPTION_RADIO_DEF = "WOGORAD.DEF";
@@ -87,19 +87,25 @@ namespace WoGOptionSkin
     bool HasResources()
     {
         return Era::PcxPngExists && Era::PcxPngExists(BASE_PCX) &&
-            Era::PcxPngExists(DARK_PCX) && Era::PcxPngExists(SELECT_PCX) &&
-            Era::PcxPngExists(HEADER_PCX) && Era::PcxPngExists(STATUS_PCX) &&
-            Era::PcxPngExists(BOTTOM_CORNER_LEFT_PCX) &&
-            Era::PcxPngExists(BOTTOM_CORNER_RIGHT_PCX);
+            Era::PcxPngExists(DARK_PCX) && Era::PcxPngExists(SELECT_PCX)
+            && Era::PcxPngExists(STATUS_PCX);
+        //return Era::PcxPngExists && Era::PcxPngExists(BASE_PCX) &&
+        //    Era::PcxPngExists(DARK_PCX) && Era::PcxPngExists(SELECT_PCX) &&
+        //    Era::PcxPngExists(HEADER_PCX) && Era::PcxPngExists(STATUS_PCX) &&
+        //    Era::PcxPngExists(BOTTOM_CORNER_LEFT_PCX) &&
+        //    Era::PcxPngExists(BOTTOM_CORNER_RIGHT_PCX);
     }
 
     bool HasPopupResources()
     {
         return available && Era::PcxPngExists(CORNER_TL_PCX) &&
             Era::PcxPngExists(CORNER_TR_PCX) && Era::PcxPngExists(CORNER_BL_PCX) &&
+            //Era::PcxPngExists(POPUP_RIGHT_PCX) && Era::PcxPngExists(POPUP_TOP_CLASP_PCX) &&
             Era::PcxPngExists(CORNER_BR_PCX) && Era::PcxPngExists(POPUP_TOP_PCX) &&
+            Era::PcxPngExists(POPUP_BOTTOM_PCX) && Era::PcxPngExists(POPUP_LEFT_PCX) ;
+        return available && Era::PcxPngExists(POPUP_TOP_PCX) &&
             Era::PcxPngExists(POPUP_BOTTOM_PCX) && Era::PcxPngExists(POPUP_LEFT_PCX) &&
-            Era::PcxPngExists(POPUP_RIGHT_PCX) && Era::PcxPngExists(POPUP_TOP_CLASP_PCX);
+            Era::PcxPngExists(POPUP_RIGHT_PCX);
     }
 
     bool HasPresetResources()
@@ -131,7 +137,7 @@ namespace WoGOptionSkin
         if (!available || !dlg)
             return;
 
-        _DlgItem_* activePage = _DlgStaticPcx8_::Create(22, 49, 194, 49,
+        _DlgItem_* activePage = _DlgStaticPcx8_::Create(22, 49, 194, 54,
             ACTIVE_PAGE_SURFACE_ID, (char*)SELECT_PCX);
         dlg->AddItem(activePage);
         activePage->Hide_ButStayEnable();
@@ -147,10 +153,10 @@ namespace WoGOptionSkin
         // the corners later in normal dialog z-order so they cover that overlap;
         // direct item-only reblits re-composite their translucent pixels and
         // visibly flash during mouse-over status updates.
-        dlg->AddItem(_DlgStaticPcx8_::Create(0, 536, 64, 64,
-            BOTTOM_CORNER_LEFT_SURFACE_ID, (char*)BOTTOM_CORNER_LEFT_PCX));
-        dlg->AddItem(_DlgStaticPcx8_::Create(dlg->width - 64, 536, 64, 64,
-            BOTTOM_CORNER_RIGHT_SURFACE_ID, (char*)BOTTOM_CORNER_RIGHT_PCX));
+        //dlg->AddItem(_DlgStaticPcx8_::Create(0, 536, 64, 64,
+        //    BOTTOM_CORNER_LEFT_SURFACE_ID, (char*)BOTTOM_CORNER_LEFT_PCX));
+        //dlg->AddItem(_DlgStaticPcx8_::Create(dlg->width - 64, 536, 64, 64,
+        //    BOTTOM_CORNER_RIGHT_SURFACE_ID, (char*)BOTTOM_CORNER_RIGHT_PCX));
     }
 
     void UpdateStatusText(_CustomDlg_* dlg, const char* text,
@@ -266,9 +272,9 @@ namespace WoGOptionSkin
         dlg->AddItem(_DlgStaticPcx8_::Create(dlg->width - cornerSize,
             dlg->height - cornerSize, cornerSize, cornerSize, 19408,
             (char*)CORNER_BR_PCX));
-        const int claspWidth = 48;
+/*        const int claspWidth = 48;
         dlg->AddItem(_DlgStaticPcx8_::Create((dlg->width - claspWidth) / 2, 0,
-            claspWidth, 16, 19409, (char*)POPUP_TOP_CLASP_PCX));
+            claspWidth, 16, 19409, (char*)POPUP_TOP_CLASP_PCX))*/;
     }
 
     void UpdateActivePage(_CustomDlg_* dlg, int page)
@@ -280,7 +286,8 @@ namespace WoGOptionSkin
             return;
         if (page >= 0 && page < 8)
         {
-            surface->SetRect(22, 49 + 60 * page, 194, 49);
+            //surface->SetRect(22, 49 + 60 * page, 194, 54);
+            surface->SetPos(22, 49 + 59 * page);
             surface->Show_ButStayEnable();
         }
         else
@@ -459,13 +466,13 @@ namespace WoGOptionRows
 
 void ShowWoGOptionPopup(char* text, char style)
 {
+     
     if (!WoGOptionSkin::HasPopupResources())
     {
-        b_MsgBoxBig(text, style);
+        b_MsgBoxBig(text, style, 2);
         return;
     }
 
-    (void)style;
     int width = 400;
     int lines = medfont2->GetLinesCountInText(text, width - 40);
     int height = lines * 16;
@@ -958,10 +965,10 @@ int Create_WoGDlgSetup_ElemOnPage(_CustomDlg_* dlg, int page, _DlgSetup_* ds)
 
         id = 1000*(page+1) +(j*200);
 
-        if (WoGOptionSkin::available)
-            dlg->AddItem(_DlgStaticPcx8_::Create(x, y, 267 +wx, 19,
-                WoGOptionSkin::GROUP_HEADER_SURFACE_BASE + page*10+j,
-                (char*)WoGOptionSkin::HEADER_PCX));
+        //if (WoGOptionSkin::available)
+        //    dlg->AddItem(_DlgStaticPcx8_::Create(x, y, 267 +wx, 19,
+        //        WoGOptionSkin::GROUP_HEADER_SURFACE_BASE + page*10+j,
+        //        (char*)WoGOptionSkin::HEADER_PCX));
 
         // титульный текст группы
         dlg->AddItem(_DlgStaticText_::Create(x, y, 267 +wx, 19,
@@ -1585,13 +1592,13 @@ namespace WoGOptionSearch
 
         b_YellowFrame_Create(dlg, 19, 531, 277, 25, BORDER_ID, ON,
             WoGOptionSkin::available ? o_Pal_Grey : o_Pal_Y);
-        dlg->AddItem(_DlgTextEdit_::Create(40, 534, 254, 19, 255, o_NullString,
+        dlg->AddItem(_DlgTextEdit_::Create(42, 535, 251, 17, 255, o_NullString,
             n_SmallFont, WoGOptionColors::WHITE,
             ALIGN_H_LEFT | ALIGN_V_CENTER,
-            WoGOptionSkin::available ? (char*)WoGOptionSkin::DARK_PCX : "WoGTextEdit.pcx",
-            EDIT_ID, 4, 0, 0));
+            WoGOptionSkin::available ? (char*)WoGOptionSkin::STATUS_PCX : "WoGTextEdit.pcx",
+            EDIT_ID, 1, 2, 0));
         dlg->GetItem(EDIT_ID)->short_tip_text = (char*)JsonText("wnd.dlg_wog_options.search.placeholder");
-        dlg->AddItem(_DlgStaticText_::Create(42, 535, 249, 17,
+        dlg->AddItem(_DlgStaticText_::Create(44, 535, 246, 17,
             (char*)JsonText("wnd.dlg_wog_options.search.placeholder"),
             n_SmallFont, WoGOptionColors::REGULAR, PLACEHOLDER_ID,
             ALIGN_H_LEFT | ALIGN_V_CENTER, 0));
@@ -1696,6 +1703,7 @@ int __stdcall Dlg_WoG_Options_Proc(_CustomDlg_* dlg, _EventMsg_* msg)
 
         if (searchAction == SEARCH_ACTION_CLOSE)
         {
+
             msg->type = MT_EXIT;
             msg->subtype = MST_EXIT;
             msg->item_id = DIID_OK;
@@ -2315,13 +2323,16 @@ void __stdcall Dlg_WoG_Options_Show(HiHook* hook, int a1)
     WoGOptionSkin::CreateBaseSurfaces(dlg);
     
     const int statusY = WoGOptionSkin::available ? dlg->height - 32 : dlg->height - 26;
-    const int statusX = WoGOptionSkin::available ? 48 : 7;
-    const int statusWidth = WoGOptionSkin::available ? 704 : dlg->width - 14;
+    const int statusWidth = WoGOptionSkin::available ? 759 : dlg->width - 14;
+    const int statusX = 800 - statusWidth >>1;
+
     statbarWoGOptions = _DlgStaticTextPcx8ed_::Create(statusX, statusY, statusWidth, 18,
         o_NullString, n_SmallFont,
         WoGOptionSkin::available ? (char*)WoGOptionSkin::STATUS_PCX : "WoGOptions.pcx",
         WoGOptionColors::REGULAR, 2, ALIGN_H_CENTER | ALIGN_V_CENTER);
     dlg->AddItem(statbarWoGOptions); // подсказка в статус баре 
+
+    b_YellowFrame_Create(dlg, statusX - 1, statusY - 1, statusWidth + 2, 20, -1, 1, o_Pal_Y)->Set565Color(42088);
     WoGOptionSkin::CreateFooterOrnaments(dlg);
 
     dlg->AddItem(_DlgStaticText_::Create(214, 20, 370, 20, ds->Name,
@@ -2337,8 +2348,8 @@ void __stdcall Dlg_WoG_Options_Show(HiHook* hook, int a1)
 
     for (int i=0; i<8; i++) {
         if (ds->Pages[i]->Enabled) {
-            dlg->AddItem(_DlgStaticText_::Create(23, 49 +60*i, 192, 49,
-                ds->Pages[i]->Name, n_SmallFont, WoGOptionColors::REGULAR,
+            dlg->AddItem(_DlgStaticText_::Create(23, 49 +59*i, 192, 55,
+                ds->Pages[i]->Name, n_MedFont, WoGOptionColors::REGULAR,
                 41 +i, ALIGN_H_CENTER | ALIGN_V_CENTER, 0));    // id = 41...48
             
             Create_WoGDlgSetup_ElemOnPage(dlg, i, ds); // функция построения элементов диалога текущей в цикле страницы
@@ -2353,7 +2364,13 @@ void __stdcall Dlg_WoG_Options_Show(HiHook* hook, int a1)
     if (ds->ButtonsStates[8] == 1) {dlg->AddItem(_DlgButton_::Create(580, 528, 64, 30, 8, bttnName, 6, 7, 0, HK_L, 0)); }   // id = 8 // загрузить
     if (ds->ButtonsStates[1] == 1) {dlg->AddItem(_DlgButton_::Create(645, 528, 64, 30, 9, bttnName, 9, 10, 0, HK_S, 0)); }  // id = 9 // сохранить
     if (ds->ButtonsStates[3] == 1) {dlg->AddItem(_DlgButton_::Create(305, 528, 64, 30, 10, bttnName, 21, 22, 0, HK_M, 0)); }  // id = 10 // мультиплеер
-    if (ds->ButtonsStates[0] == 1) {dlg->AddItem(_DlgButton_::Create(715, 528, 64, 30, DIID_OK, bttnName, 0, 1, 1, 0, 2)); } // id = 30725; Enter/Esc handled by dialog proc
+    if (ds->ButtonsStates[0] == 1)
+    {
+        _DlgButton_*okBttn =  _DlgButton_::Create(715, 528, 64, 30, DIID_OK, bttnName, 0, 1, 1, 0, 2);
+        //okBttn->AddHotKey(1);
+        //okBttn->AddHotKey(28);
+        dlg->AddItem(okBttn);
+    } // id = 30725; Enter/Esc handled by dialog proc
     //_DlgScroll_* wogOptScroll = _DlgScroll_::Create(26, 534, 334, 16, 11, 8, (_ptr_)Dlg_WoG_Options_Scroll, 0, 0, 0); // создать ползунок
     //dlg->AddItem(wogOptScroll);
 

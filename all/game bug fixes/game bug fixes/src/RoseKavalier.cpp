@@ -20,6 +20,80 @@ _LHF_(AI_combat_div0)
 	return EXEC_DEFAULT;
 }
 
+/*
+ *
+ * This hook [1] allows AI to raise more than one necromancy creature.
+ * It skips deletion of loser's army which will be done later.
+ *
+ */
+_LHF_(AI_NecromancyFix)
+{
+    c->return_address = 0x426FED;
+    return NO_EXEC_DEFAULT;
+}
+
+/*
+ *
+ * This hook [2] allows AI to raise more than one necromancy creature.
+ * It restores deletion of loser's army which was skipped by @AI_NecromancyFix
+ *
+ */
+void _HH_AI_NecromancyFix(HiHook *h, _AIQuickBattle_ *winner, _AIQuickBattle_ *loser, int town)
+{
+    CALL_3(void, __thiscall, h->GetDefaultFunc(), winner, loser, town);
+    loser->DeleteCreatures();
+}
+
+/*
+ *
+ * The AI was observed to deal negative damage in quick battle in "+ The Last Crusade +"
+ * when having a large army. This caps damage to 2^31 - 1.
+ *
+ */
+int __stdcall _HH_AI_QB_GetDamage(HiHook *h, _AIQuickBattle_ *This, int a1, int a2)
+{
+
+    int r = CALL_3(int, __thiscall, h->GetDefaultFunc(), This, a1, a2);
+
+    if (This->armyStrength > 0 && r < 0)
+        r = INT_MAX;
+    return r;
+}
+
+/*
+ *
+ * The AI with very large army may calculate its army strength as negative and lose easy battles.
+ * This caps power to 2^31 - 1.
+ *
+ */
+void __stdcall _HH_AI_QB_hugeArmy(HiHook *h, _AIQuickBattle_ *This, int a1, int a2, int a3)
+{
+    if (This->armyStrength < 0)
+        This->armyStrength = INT_MAX;
+    CALL_4(void, __thiscall, h->GetDefaultFunc(), This, a1, a2, a3);
+}
+
+/*
+ *
+ * The AI was observed to spawn creatures during Quick Combat, finishing with more
+ * creatures than it started the combat with.
+ * This hook is applied before @AI_NecromancyFix.
+ *
+ */
+void __stdcall _HH_AI_PreventCreatureSpawning(HiHook *h, _AIQuickBattle_ *This, int a2)
+{
+    _Army_ backup;
+    backup = *This->army;
+    CALL_2(void, __thiscall, h->GetDefaultFunc(), This, a2);
+
+    _Army_ *army = This->army;
+    for (int i = 0; i < 7; i++)
+    {
+        if (army->type[i] != -1 && army->count[i] > backup.count[i])
+            army->count[i] = backup.count[i];
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -176,11 +250,19 @@ void RK(Patcher* _P, PatcherInstance* _PI)
 
     if (!_RK ) 
     {
+
         // if AI has tactics and shooters, but you have 0 creatures -> crash
         _PI->WriteLoHook(0x42DDA6, AI_split_div0); 
 
         // divides by speed which shouldn't be 0
         _PI->WriteLoHook(0x42437D, AI_combat_div0);
+
+        _PI->WriteLoHook(0x426FE4, AI_NecromancyFix);		// Army is deleted before Necromancy action, so skip army deletion and execute it in HH below
+        _PI->WriteHiHook(0x426EE0, SPLICE_, EXTENDED_, THISCALL_, _HH_AI_NecromancyFix);			// this HiHook runs the skipped over code from @AI_NecromancyFix
+        _PI->WriteHiHook(0x426390, SPLICE_, EXTENDED_, THISCALL_, _HH_AI_QB_GetDamage);			// don't allow negative damage in QB
+        _PI->WriteHiHook(0x42443B, CALL_, EXTENDED_, THISCALL_, _HH_AI_QB_hugeArmy);				// prevent loss to small army
+        _PI->WriteHiHook(0x4274D4, CALL_, EXTENDED_, THISCALL_, _HH_AI_PreventCreatureSpawning);	// flag for below hook
+
 
         // описание кнопки сказочного дракона
         _PI->WriteLoHook(0x5F5320, FaerieButton);

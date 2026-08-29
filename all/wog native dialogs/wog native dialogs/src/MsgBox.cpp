@@ -39,7 +39,7 @@ constexpr auto MSG_10_IT7 = 30736;
 
 constexpr INT MINIMUM_ADDRESS_TO_READ = 0x100000;
 constexpr INT ERA_ERM_STRING_ADDRESS = 1000000000;
-constexpr INT MAXIMUM_DEFAULT_PIC_TYPE = 36;
+constexpr INT MAXIMUM_DEFAULT_PIC_TYPE = 128;
 
 int my_TimeClick_MsgBox;
 int my_TimeAnimate_MsgBox;

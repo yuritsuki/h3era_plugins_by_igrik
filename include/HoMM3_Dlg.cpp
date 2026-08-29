@@ -310,7 +310,7 @@ void b_MsgBoxAndPcx8(char* text, char* pcx_name, int style)
 
 // показ сообщений с большими размерами по ПКМ
 // оно же используется для отображения всех описаний WoG опций
-void b_MsgBoxBig(char* text, char style)
+void b_MsgBoxBig(char* text, char style, int playerId = -1)
 {
     int x, y;
     x = 400;
@@ -335,7 +335,7 @@ void b_MsgBoxBig(char* text, char style)
     } 
 
     _CustomDlg_* dlg = _CustomDlg_::Create(-1, -1, x, y, DF_SCREENSHOT | DF_SHADOW, NULL);
-    Set_DlgBackground_RK(dlg, 0, o_GameMgr->GetMeID());
+    Set_DlgBackground_RK(dlg, 0, playerId);
 
     dlg->AddItem(_DlgStaticText_::Create(20, 20, dlg->width -40, dlg->height -40, text, "medfont2.fnt", 1, 2, ALIGN_H_CENTER | ALIGN_V_CENTER, 0)); 
 

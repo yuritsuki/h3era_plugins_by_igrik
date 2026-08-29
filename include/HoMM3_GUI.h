@@ -746,6 +746,8 @@ NOALIGN struct _DlgButton_ : public _DlgStaticDef_
  }
  inline int SetHotKey(int hotkey)
   { return CALL_4(int, __thiscall, 0x404230, &this->hotkeys_struct, this->hotkeys_end, 1, &hotkey); }
+ inline void AddHotKey(int hotkey)
+  { return CALL_2(void, __thiscall, 0x4E15E0, this, hotkey); }
 };
 ////////////////////////////////////////////////////////////////////////////
 
@@ -964,12 +966,7 @@ inline void DlgStdBackground_Create(_Dlg_* dlg, int color)
 #define ON 1
 #define OFF 0
 
-inline void b_YellowFrame_Create(_Dlg_* dlg, int x, int y, int width, int height, int id, int show, int color) {
-  dlg->AddItem(CALL_8 (_DlgItem_*, __thiscall, 0x44FE00, o_New(56), x, y, width, height, id, *(int*)(*(int*)0x6AAD18 + color), 1024)); 
-  if (show) { 
-    dlg->GetItem(id)->SendCommand(5, 4);
-  } else dlg->GetItem(id)->SendCommand(6, 4);
-}
+
 
 
 // замена цвета item->Field<int>(0x30) 
@@ -979,7 +976,20 @@ NOALIGN struct _DlgColorFrame_ : public _DlgItem_
   _int_ field_34; // +52
 
  inline void SetColor(int color) {this->color = *(int*)(*(int*)0x6AAD18 + color);}
+ inline void Set565Color(int color) {this->color =color;}
 };
+inline _DlgColorFrame_ *b_YellowFrame_Create(_Dlg_ *dlg, int x, int y, int width, int height, int id, int show,
+                                             int color)
+{
+    _DlgColorFrame_ *frame = (_DlgColorFrame_ *)o_New(56);
+    dlg->AddItem(CALL_8(_DlgColorFrame_ *, __thiscall, 0x44FE00, frame, x, y, width, height, id,
+        *(int*)(*(int*)0x6AAD18 + color), 1024));
+    if (show)
+        dlg->GetItem(id)->SendCommand(5, 4);
+    else
+        dlg->GetItem(id)->SendCommand(6, 4);
+    return frame;
+}
 
 ////////////////////////////////////////////////////////////////////////////
 
